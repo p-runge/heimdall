@@ -1,0 +1,179 @@
+@import "tailwindcss";
+
+:root {
+  /* Night sky, blue-shifted rather than pure black */
+  --color-void: #05070d;
+  --color-void-raised: #0a0e1a;
+  --color-void-panel: #0e1424;
+  --color-mist-100: #e4e8f5;
+  --color-mist-300: #b6bedd;
+  --color-mist-500: #7c86ab;
+  --color-mist-700: #3d4463;
+  --color-mist-800: #262c46;
+
+  /* Bifrost / aurora gradient stops */
+  --color-aurora-teal: #2fe0c4;
+  --color-aurora-violet: #8b6ff5;
+  --color-aurora-magenta: #e256d9;
+  --color-aurora-gold: #f2c14e;
+
+  /* Gjallarhorn gold — reserved for warning states, kept distinct from aurora */
+  --color-horn-gold: #e0982f;
+
+  /* Critical / down */
+  --color-crimson: #ef4757;
+
+  --font-display: var(--font-cinzel);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-geist-mono);
+}
+
+@theme inline {
+  --color-void: var(--color-void);
+  --color-void-raised: var(--color-void-raised);
+  --color-void-panel: var(--color-void-panel);
+  --color-mist-100: var(--color-mist-100);
+  --color-mist-300: var(--color-mist-300);
+  --color-mist-500: var(--color-mist-500);
+  --color-mist-700: var(--color-mist-700);
+  --color-mist-800: var(--color-mist-800);
+  --color-aurora-teal: var(--color-aurora-teal);
+  --color-aurora-violet: var(--color-aurora-violet);
+  --color-aurora-magenta: var(--color-aurora-magenta);
+  --color-aurora-gold: var(--color-aurora-gold);
+  --color-horn-gold: var(--color-horn-gold);
+  --color-crimson: var(--color-crimson);
+  --font-display: var(--font-display);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+body {
+  background: var(--color-void);
+  color: var(--color-mist-100);
+}
+
+/* Aurora wordmark / accent gradient */
+.aurora-text {
+  background: linear-gradient(
+    90deg,
+    var(--color-aurora-teal),
+    var(--color-aurora-violet),
+    var(--color-aurora-magenta),
+    var(--color-aurora-gold)
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.aurora-gradient {
+  background: linear-gradient(
+    90deg,
+    var(--color-aurora-teal),
+    var(--color-aurora-violet),
+    var(--color-aurora-magenta),
+    var(--color-aurora-gold)
+  );
+}
+
+/* Ambient aurora wash behind the Watchtower home — intensity is controlled
+   by the --aurora-intensity custom property, set inline based on active
+   alert count, so the app's mood visually reflects fleet health. */
+.aurora-ambient {
+  --aurora-intensity: 0.12;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+      ellipse 80% 50% at 20% -10%,
+      color-mix(in srgb, var(--color-aurora-teal) calc(var(--aurora-intensity) * 100%), transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 90% 0%,
+      color-mix(in srgb, var(--color-aurora-magenta) calc(var(--aurora-intensity) * 100%), transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 70% 50% at 50% 100%,
+      color-mix(in srgb, var(--color-aurora-violet) calc(var(--aurora-intensity) * 70%), transparent),
+      transparent
+    );
+  animation: aurora-drift 18s ease-in-out infinite alternate;
+}
+
+@keyframes aurora-drift {
+  0% {
+    filter: hue-rotate(0deg);
+    opacity: 0.85;
+  }
+  100% {
+    filter: hue-rotate(18deg);
+    opacity: 1;
+  }
+}
+
+/* Status ring glow used on Watchtower tiles */
+@keyframes pulse-ring {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 0 6px transparent;
+    opacity: 0.7;
+  }
+}
+
+.status-ring {
+  animation: pulse-ring 2.4s ease-in-out infinite;
+}
+
+/* Bifrost alert border — a shimmering crack of the rainbow bridge around
+   cards in a critical state, instead of a flat red outline. */
+@property --bifrost-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.bifrost-border {
+  position: relative;
+  border-radius: inherit;
+}
+
+.bifrost-border::before {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--bifrost-angle),
+    var(--color-aurora-teal),
+    var(--color-aurora-violet),
+    var(--color-aurora-magenta),
+    var(--color-aurora-gold),
+    var(--color-aurora-teal)
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: bifrost-spin 3.5s linear infinite;
+}
+
+@keyframes bifrost-spin {
+  to {
+    --bifrost-angle: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-ambient,
+  .status-ring,
+  .bifrost-border::before {
+    animation: none;
+  }
+}

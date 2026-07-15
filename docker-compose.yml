@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: heimdall
+      POSTGRES_PASSWORD: heimdall
+      POSTGRES_DB: heimdall
+    ports:
+      - "5544:5432"
+    volumes:
+      - heimdall-postgres:/var/lib/postgresql/data
+
+volumes:
+  heimdall-postgres:
