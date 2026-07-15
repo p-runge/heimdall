@@ -1,6 +1,6 @@
 {
   "crons": [
-    { "path": "/api/cron/health", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron/health", "schedule": "* * * * *" },
     { "path": "/api/cron/drift", "schedule": "*/30 * * * *" },
     { "path": "/api/cron/compliance", "schedule": "0 4 * * *" },
     { "path": "/api/cron/preview", "schedule": "*/30 * * * *" },
