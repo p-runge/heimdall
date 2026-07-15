@@ -4,19 +4,21 @@ import { db } from "@/db";
 import { alerts, sites } from "@/db/schema";
 import { Badge } from "@/components/ui";
 
-type SiteStatus = "critical" | "warning" | "healthy";
+type SiteStatus = "critical" | "warning" | "unknown" | "healthy";
 
-const STATUS_RANK: Record<SiteStatus, number> = { critical: 0, warning: 1, healthy: 2 };
+const STATUS_RANK: Record<SiteStatus, number> = { critical: 0, warning: 1, unknown: 2, healthy: 3 };
 
-const STATUS_STYLES: Record<SiteStatus, { ring: string; dot: string; label: string }> = {
-  critical: { ring: "text-crimson", dot: "bg-crimson", label: "critical" },
-  warning: { ring: "text-horn-gold", dot: "bg-horn-gold", label: "warning" },
-  healthy: { ring: "text-aurora-teal", dot: "bg-aurora-teal", label: "healthy" },
+const STATUS_STYLES: Record<SiteStatus, { ring: string; dot: string; label: string; pulse: boolean }> = {
+  critical: { ring: "text-crimson", dot: "bg-crimson", label: "critical", pulse: true },
+  warning: { ring: "text-horn-gold", dot: "bg-horn-gold", label: "warning", pulse: true },
+  unknown: { ring: "text-mist-600", dot: "bg-mist-600", label: "not yet checked", pulse: false },
+  healthy: { ring: "text-aurora-teal", dot: "bg-aurora-teal", label: "healthy", pulse: true },
 };
 
-function siteStatus(openAlerts: { severity: string }[]): SiteStatus {
+function siteStatus(openAlerts: { severity: string }[], hasBeenChecked: boolean): SiteStatus {
   if (openAlerts.some((a) => a.severity === "critical")) return "critical";
   if (openAlerts.some((a) => a.severity === "warning")) return "warning";
+  if (!hasBeenChecked) return "unknown";
   return "healthy";
 }
 
@@ -26,11 +28,12 @@ export default async function Home() {
     with: {
       client: true,
       alerts: { where: eq(alerts.status, "open") },
+      healthCheckRuns: { limit: 1 },
     },
   });
 
   const watchposts = activeSites
-    .map((site) => ({ site, status: siteStatus(site.alerts) }))
+    .map((site) => ({ site, status: siteStatus(site.alerts, site.healthCheckRuns.length > 0) }))
     .sort(
       (a, b) =>
         STATUS_RANK[a.status] - STATUS_RANK[b.status] || a.site.name.localeCompare(b.site.name),
@@ -68,7 +71,9 @@ export default async function Home() {
                         <div className="truncate text-sm text-mist-500">{site.client.name}</div>
                       </div>
                       <span
-                        className={`status-ring mt-1 h-3 w-3 shrink-0 rounded-full ${styles.dot} ${styles.ring}`}
+                        className={`mt-1 h-3 w-3 shrink-0 rounded-full ${styles.dot} ${styles.ring} ${
+                          styles.pulse ? "status-ring" : ""
+                        }`}
                         aria-hidden
                       />
                     </div>
@@ -78,7 +83,13 @@ export default async function Home() {
                       </span>
                       <Badge
                         tone={
-                          status === "critical" ? "crimson" : status === "warning" ? "gold" : "aurora"
+                          status === "critical"
+                            ? "crimson"
+                            : status === "warning"
+                              ? "gold"
+                              : status === "unknown"
+                                ? "neutral"
+                                : "aurora"
                         }
                       >
                         {styles.label}
