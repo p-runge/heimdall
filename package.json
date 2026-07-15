@@ -3,16 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently --names next,cron --prefix-colors blue,magenta \"pnpm:dev:next\" \"pnpm:cron:local\"",
+    "dev:next": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "cron:local": "tsx scripts/local-cron.ts",
+    "cron:local:now": "tsx scripts/local-cron.ts --now"
   },
   "dependencies": {
     "cheerio": "^1.2.0",
+    "croner": "^10.0.1",
     "drizzle-orm": "^0.45.2",
     "next": "16.2.10",
     "octokit": "^5.0.5",
@@ -28,6 +32,7 @@
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^10.0.3",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
