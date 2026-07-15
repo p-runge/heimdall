@@ -50,6 +50,9 @@ export default function RootLayout({
               <Link href="/alerts" className="hover:text-mist-100 transition-colors">
                 Alerts
               </Link>
+              <Link href="/settings" className="hover:text-mist-100 transition-colors">
+                Settings
+              </Link>
             </nav>
           </div>
         </header>

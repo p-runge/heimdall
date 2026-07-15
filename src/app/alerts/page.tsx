@@ -3,7 +3,8 @@ import { desc, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { alerts } from "@/db/schema";
 import { acknowledgeAlert, resolveAlertManually } from "@/lib/actions";
-import { Badge, Button, Panel } from "@/components/ui";
+import { isIntegrationConfigured } from "@/lib/integrations";
+import { Badge, Button, Callout, Panel } from "@/components/ui";
 
 const TYPE_LABELS: Record<string, string> = {
   site_down: "Site down",
@@ -22,6 +23,7 @@ export default async function AlertsPage() {
     orderBy: desc(alerts.createdAt),
     with: { site: true },
   });
+  const discordConfigured = isIntegrationConfigured("discord");
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-12">
@@ -29,6 +31,18 @@ export default async function AlertsPage() {
         <span className="aurora-text">Gjallarhorn</span> Alerts
       </h1>
       <p className="mt-2 text-mist-300">Everything the horn has sounded that isn&apos;t resolved yet.</p>
+
+      {!discordConfigured && (
+        <div className="mt-4">
+          <Callout tone="neutral">
+            Discord notifications aren&apos;t connected — alerts only show up here.{" "}
+            <Link href="/settings" className="underline hover:text-mist-100">
+              Configure it
+            </Link>
+            .
+          </Callout>
+        </div>
+      )}
 
       <div className="mt-8 space-y-3">
         {allAlerts.length === 0 && <Panel className="text-mist-500">All quiet.</Panel>}

@@ -61,6 +61,22 @@ export function Button({
   );
 }
 
+export function Callout({
+  children,
+  tone = "gold",
+}: {
+  children: ReactNode;
+  tone?: "gold" | "neutral";
+}) {
+  const tones = {
+    gold: "border-horn-gold/40 bg-horn-gold/5 text-horn-gold",
+    neutral: "border-mist-700 bg-mist-800/20 text-mist-400",
+  } as const;
+  return (
+    <div className={`rounded-lg border px-3.5 py-2.5 text-sm ${tones[tone]}`}>{children}</div>
+  );
+}
+
 export function Badge({
   children,
   tone = "neutral",

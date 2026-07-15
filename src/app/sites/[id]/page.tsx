@@ -4,7 +4,8 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { alerts, complianceCheckRuns, driftCheckRuns, healthCheckRuns, previewCheckRuns, rankCheckRuns, sites } from "@/db/schema";
 import { createKeyword, deleteKeyword, deleteSite } from "@/lib/actions";
-import { Badge, Button, Field, Panel, TextInput } from "@/components/ui";
+import { isIntegrationConfigured } from "@/lib/integrations";
+import { Badge, Button, Callout, Field, Panel, TextInput } from "@/components/ui";
 
 export default async function SiteDetailPage({
   params,
@@ -41,6 +42,8 @@ export default async function SiteDetailPage({
   const compliance = site.complianceCheckRuns[0];
   const preview = site.previewCheckRuns[0];
   const drift = site.driftCheckRuns[0];
+  const githubConfigured = isIntegrationConfigured("github");
+  const dataforseoConfigured = isIntegrationConfigured("dataforseo");
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-12">
@@ -132,7 +135,17 @@ export default async function SiteDetailPage({
         <Panel>
           <h2 className="font-display text-sm tracking-wide text-mist-300">Deploy drift</h2>
           {site.githubOwner && site.githubRepo ? (
-            drift ? (
+            !githubConfigured ? (
+              <div className="mt-3">
+                <Callout>
+                  GitHub isn&apos;t connected, so drift checks aren&apos;t running.{" "}
+                  <Link href="/settings" className="underline hover:text-mist-100">
+                    Configure it
+                  </Link>
+                  .
+                </Callout>
+              </div>
+            ) : drift ? (
               <div className="mt-3 space-y-2 text-sm">
                 <Badge tone={drift.commitsBehind > 0 ? "gold" : "aurora"}>
                   {drift.commitsBehind > 0 ? `${drift.commitsBehind} undeployed commit(s)` : "in sync"}
@@ -211,6 +224,18 @@ export default async function SiteDetailPage({
       <div className="mt-4 grid gap-8 md:grid-cols-[2fr_1fr]">
         <div>
           <h2 className="font-display text-lg tracking-wide text-mist-100">Keywords</h2>
+          {!dataforseoConfigured && (
+            <div className="mt-3">
+              <Callout>
+                SEO rank tracking isn&apos;t connected — keywords can be added, but positions won&apos;t
+                update until it is.{" "}
+                <Link href="/settings" className="underline hover:text-mist-100">
+                  Configure it
+                </Link>
+                .
+              </Callout>
+            </div>
+          )}
           <div className="mt-3 space-y-2">
             {site.keywords.length === 0 && (
               <Panel className="text-mist-500">No keywords tracked yet.</Panel>
