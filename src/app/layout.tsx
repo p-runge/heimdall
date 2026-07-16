@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Cinzel, Inter, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
+import { AlertsNavLink } from "@/components/alerts-nav-link";
 import "./globals.css";
 
 const cinzel = Cinzel({
@@ -47,9 +48,7 @@ export default function RootLayout({
               <Link href="/clients" className="hover:text-mist-100 transition-colors">
                 Clients
               </Link>
-              <Link href="/alerts" className="hover:text-mist-100 transition-colors">
-                Alerts
-              </Link>
+              <AlertsNavLink />
               <Link href="/settings" className="hover:text-mist-100 transition-colors">
                 Settings
               </Link>
