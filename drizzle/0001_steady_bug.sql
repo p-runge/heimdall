@@ -1,0 +1,1 @@
+ALTER TABLE "sites" ADD COLUMN "seo_watcher_enabled" boolean DEFAULT false NOT NULL;

@@ -45,6 +45,9 @@ export const sites = pgTable("sites", {
   isActive: boolean("is_active").notNull().default(true),
   githubOwner: text("github_owner"),
   githubRepo: text("github_repo"),
+  // Separate from isActive: DataForSEO rank checks cost money per keyword,
+  // so automatic SEO watching is an explicit opt-in per site.
+  seoWatcherEnabled: boolean("seo_watcher_enabled").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

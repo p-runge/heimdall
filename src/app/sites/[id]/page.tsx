@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { alerts, complianceCheckRuns, driftCheckRuns, healthCheckRuns, previewCheckRuns, rankCheckRuns, sites } from "@/db/schema";
-import { createKeyword, deleteKeyword, deleteSite } from "@/lib/actions";
+import { createKeyword, deleteKeyword, deleteSite, runRankCheckNow, setSeoWatcher } from "@/lib/actions";
 import { isIntegrationConfigured } from "@/lib/integrations";
+import { describeCronInterval, getNextRun } from "@/lib/cronSchedule";
 import { Badge, Button, Callout, Field, Panel, TextInput } from "@/components/ui";
 
 export default async function SiteDetailPage({
@@ -44,6 +45,10 @@ export default async function SiteDetailPage({
   const drift = site.driftCheckRuns[0];
   const githubConfigured = isIntegrationConfigured("github");
   const dataforseoConfigured = isIntegrationConfigured("dataforseo");
+  const setSeoWatcherWithIds = setSeoWatcher.bind(null, site.id, site.seoWatcherEnabled);
+  const runRankCheckNowWithIds = runRankCheckNow.bind(null, site.id);
+  const rankSubmitInterval = describeCronInterval("/api/cron/rank-submit");
+  const nextRankCheck = site.seoWatcherEnabled ? getNextRun("/api/cron/rank-submit") : null;
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-12">
@@ -218,6 +223,45 @@ export default async function SiteDetailPage({
           ) : (
             <p className="mt-2 text-mist-500">Not configured.</p>
           )}
+        </Panel>
+      </div>
+
+      <div className="mt-8">
+        <Panel className="flex items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="font-display text-sm tracking-wide text-mist-300">SEO watcher</h2>
+              <Badge tone={site.seoWatcherEnabled ? "aurora" : "neutral"}>
+                {site.seoWatcherEnabled ? "watching" : "paused"}
+              </Badge>
+            </div>
+            <div className="mt-2 text-sm text-mist-400">
+              {site.seoWatcherEnabled ? (
+                <>
+                  Automatic rank checks run{" "}
+                  {rankSubmitInterval ?? "on schedule"}
+                  {nextRankCheck && (
+                    <> &middot; next check {nextRankCheck.toLocaleString()}</>
+                  )}
+                  .
+                </>
+              ) : (
+                "Automatic rank checks are off — DataForSEO calls cost money per keyword, so this stays opt-in per site."
+              )}
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <form action={runRankCheckNowWithIds}>
+              <Button variant="ghost" type="submit" disabled={!dataforseoConfigured}>
+                Run check now
+              </Button>
+            </form>
+            <form action={setSeoWatcherWithIds}>
+              <Button variant={site.seoWatcherEnabled ? "danger" : "primary"} type="submit">
+                {site.seoWatcherEnabled ? "Turn off" : "Turn on"}
+              </Button>
+            </form>
+          </div>
         </Panel>
       </div>
 

@@ -19,7 +19,8 @@ function getAuthHeader() {
 }
 
 interface DataForSeoTaskPostResponse {
-  tasks?: { id?: string; status_message?: string }[];
+  status_message?: string;
+  tasks?: { id?: string; status_message?: string }[] | null;
 }
 
 interface DataForSeoTaskGetResponse {
@@ -57,8 +58,13 @@ export const dataForSeoProvider: RankProvider = {
     const data = (await res.json()) as DataForSeoTaskPostResponse;
     const taskId = data.tasks?.[0]?.id;
     if (!taskId) {
+      // Account-level failures (e.g. unverified account, insufficient balance) put the
+      // reason at the top-level status_message and leave tasks null; only per-task
+      // failures nest it under tasks[0].
       throw new Error(
-        `DataForSEO task submission failed: ${data.tasks?.[0]?.status_message ?? res.statusText}`,
+        `DataForSEO task submission failed: ${
+          data.tasks?.[0]?.status_message ?? data.status_message ?? res.statusText
+        }`,
       );
     }
     return { taskId };

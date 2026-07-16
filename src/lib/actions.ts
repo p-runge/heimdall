@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { alerts, clients, environmentBranchMappings, keywords, sites } from "@/db/schema";
 import { runHealthCheck } from "@/checks/health";
+import { submitRankChecksForSite } from "@/checks/rank";
 
 function requireString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -101,6 +102,22 @@ export async function createKeyword(formData: FormData) {
 
 export async function deleteKeyword(keywordId: string, siteId: string) {
   await db.delete(keywords).where(eq(keywords.id, keywordId));
+  revalidatePath(`/sites/${siteId}`);
+}
+
+export async function setSeoWatcher(siteId: string, currentlyEnabled: boolean) {
+  await db
+    .update(sites)
+    .set({ seoWatcherEnabled: !currentlyEnabled })
+    .where(eq(sites.id, siteId));
+  revalidatePath(`/sites/${siteId}`);
+}
+
+export async function runRankCheckNow(siteId: string) {
+  const site = await db.query.sites.findFirst({ where: eq(sites.id, siteId) });
+  if (!site) throw new Error("site not found");
+
+  await submitRankChecksForSite(site);
   revalidatePath(`/sites/${siteId}`);
 }
 

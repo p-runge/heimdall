@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import pLimit from "p-limit";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { sites } from "@/db/schema";
 import { submitRankChecksForSite } from "@/checks/rank";
@@ -19,7 +19,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const activeSites = await db.query.sites.findMany({ where: eq(sites.isActive, true) });
+  const activeSites = await db.query.sites.findMany({
+    where: and(eq(sites.isActive, true), eq(sites.seoWatcherEnabled, true)),
+  });
   const limit = pLimit(3);
 
   const results = await Promise.allSettled(
