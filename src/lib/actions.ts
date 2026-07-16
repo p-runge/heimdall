@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { alerts, clients, environmentBranchMappings, keywords, sites } from "@/db/schema";
+import { runHealthCheck } from "@/checks/health";
 
 function requireString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -49,6 +50,15 @@ export async function createSite(formData: FormData) {
     .insert(sites)
     .values({ clientId, name, primaryUrl, previewUrl, githubOwner, githubRepo })
     .returning();
+
+  // Run the first health check right away rather than waiting for the next
+  // scheduled tick. runHealthCheck never throws on network failure (a down
+  // site just yields an isUp:false row); only a genuine bug would land here.
+  try {
+    await runHealthCheck(site);
+  } catch (err) {
+    console.error(`initial health check failed for site ${site.id}:`, err);
+  }
 
   if (githubOwner && githubRepo) {
     await db.insert(environmentBranchMappings).values({

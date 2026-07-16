@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { alerts, sites } from "@/db/schema";
+import { alerts, healthCheckRuns, sites } from "@/db/schema";
 import { Badge } from "@/components/ui";
 
 type SiteStatus = "critical" | "warning" | "unknown" | "healthy";
@@ -15,10 +15,18 @@ const STATUS_STYLES: Record<SiteStatus, { ring: string; dot: string; label: stri
   healthy: { ring: "text-aurora-teal", dot: "bg-aurora-teal", label: "healthy", pulse: true },
 };
 
-function siteStatus(openAlerts: { severity: string }[], hasBeenChecked: boolean): SiteStatus {
+function siteStatus(
+  openAlerts: { severity: string }[],
+  latestHealthCheck: { isUp: boolean } | undefined,
+): SiteStatus {
+  if (!latestHealthCheck) return "unknown";
+  // Reflect the most recent observation immediately, even before two
+  // consecutive failures have escalated it into a debounced Alert row —
+  // the debounce exists to reduce notification noise, not to make the
+  // dashboard lag behind what was just observed.
+  if (!latestHealthCheck.isUp) return "critical";
   if (openAlerts.some((a) => a.severity === "critical")) return "critical";
   if (openAlerts.some((a) => a.severity === "warning")) return "warning";
-  if (!hasBeenChecked) return "unknown";
   return "healthy";
 }
 
@@ -28,12 +36,12 @@ export default async function Home() {
     with: {
       client: true,
       alerts: { where: eq(alerts.status, "open") },
-      healthCheckRuns: { limit: 1 },
+      healthCheckRuns: { limit: 1, orderBy: desc(healthCheckRuns.checkedAt) },
     },
   });
 
   const watchposts = activeSites
-    .map((site) => ({ site, status: siteStatus(site.alerts, site.healthCheckRuns.length > 0) }))
+    .map((site) => ({ site, status: siteStatus(site.alerts, site.healthCheckRuns[0]) }))
     .sort(
       (a, b) =>
         STATUS_RANK[a.status] - STATUS_RANK[b.status] || a.site.name.localeCompare(b.site.name),
