@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { alerts, complianceCheckRuns, driftCheckRuns, healthCheckRuns, previewCheckRuns, rankCheckRuns, sites } from "@/db/schema";
+import { runSiteChecks } from "@/checks/runAll";
 import { createKeyword, deleteKeyword, deleteSite, runRankCheckNow, setSeoWatcher } from "@/lib/actions";
 import { isIntegrationConfigured } from "@/lib/integrations";
 import { describeCronInterval, getNextRun } from "@/lib/cronSchedule";
@@ -19,6 +20,13 @@ export default async function SiteDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
+  // Every check except the paid SEO/rank check runs on each visit to this page,
+  // so the panels below always reflect current state rather than the last cron tick.
+  const siteForChecks = await db.query.sites.findFirst({ where: eq(sites.id, id) });
+  if (!siteForChecks) notFound();
+  await runSiteChecks(siteForChecks);
+
   const site = await db.query.sites.findFirst({
     where: eq(sites.id, id),
     with: {
