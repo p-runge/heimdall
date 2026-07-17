@@ -101,14 +101,9 @@ export default async function ClientDetailPage({
                 <TextInput name="githubRepo" placeholder="marketing-site" />
               </Field>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Production branch">
-                <TextInput name="prodBranch" placeholder="main" />
-              </Field>
-              <Field label="Compare branch (optional)">
-                <TextInput name="compareBranch" placeholder="develop" />
-              </Field>
-            </div>
+            <Field label="Production branch">
+              <TextInput name="prodBranch" placeholder="main" />
+            </Field>
             <Button type="submit">Add site</Button>
           </form>
         </Panel>

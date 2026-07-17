@@ -15,6 +15,13 @@
       "when": 1784204487797,
       "tag": "0001_steady_bug",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784279679404,
+      "tag": "0002_fresh_jackal",
+      "breakpoints": true
     }
   ]
 }

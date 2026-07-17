@@ -45,20 +45,11 @@ export const sites = pgTable("sites", {
   isActive: boolean("is_active").notNull().default(true),
   githubOwner: text("github_owner"),
   githubRepo: text("github_repo"),
+  prodBranch: text("prod_branch").notNull().default("main"),
   // Separate from isActive: DataForSEO rank checks cost money per keyword,
   // so automatic SEO watching is an explicit opt-in per site.
   seoWatcherEnabled: boolean("seo_watcher_enabled").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
-
-export const environmentBranchMappings = pgTable("environment_branch_mappings", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  siteId: uuid("site_id")
-    .notNull()
-    .references(() => sites.id, { onDelete: "cascade" }),
-  envName: text("env_name").notNull(),
-  branchName: text("branch_name").notNull(),
-  isProdBranch: boolean("is_prod_branch").notNull().default(false),
 });
 
 export const healthCheckRuns = pgTable("health_check_runs", {
@@ -133,25 +124,25 @@ export const driftCheckRuns = pgTable("drift_check_runs", {
   siteId: uuid("site_id")
     .notNull()
     .references(() => sites.id, { onDelete: "cascade" }),
-  envMappingId: uuid("env_mapping_id").references(() => environmentBranchMappings.id, {
-    onDelete: "set null",
-  }),
   checkedAt: timestamp("checked_at").notNull().defaultNow(),
-  commitsBehind: integer("commits_behind").notNull().default(0),
-  commitsAhead: integer("commits_ahead").notNull().default(0),
-  compareUrl: text("compare_url"),
-  status: text("status"),
+  branchHeadSha: text("branch_head_sha").notNull(),
+  // Both null when the repo has no GitHub Deployments to compare against
+  // (e.g. not using Vercel's GitHub integration) — the PR list below still works.
+  deploymentSha: text("deployment_sha"),
+  deploymentCommitsBehind: integer("deployment_commits_behind"),
 });
 
-export const driftCommits = pgTable("drift_commits", {
+export const driftPullRequests = pgTable("drift_pull_requests", {
   id: uuid("id").primaryKey().defaultRandom(),
   driftCheckRunId: uuid("drift_check_run_id")
     .notNull()
     .references(() => driftCheckRuns.id, { onDelete: "cascade" }),
-  sha: text("sha").notNull(),
-  message: text("message").notNull(),
-  author: text("author"),
-  committedAt: timestamp("committed_at"),
+  number: integer("number").notNull(),
+  title: text("title").notNull(),
+  url: text("url").notNull(),
+  branchName: text("branch_name").notNull(),
+  authorLogin: text("author_login"),
+  prCreatedAt: timestamp("pr_created_at").notNull(),
 });
 
 export const keywords = pgTable("keywords", {
@@ -226,7 +217,6 @@ export const clientsRelations = relations(clients, ({ many }) => ({
 
 export const sitesRelations = relations(sites, ({ one, many }) => ({
   client: one(clients, { fields: [sites.clientId], references: [clients.id] }),
-  environmentBranchMappings: many(environmentBranchMappings),
   healthCheckRuns: many(healthCheckRuns),
   complianceCheckRuns: many(complianceCheckRuns),
   previewCheckRuns: many(previewCheckRuns),
@@ -235,16 +225,6 @@ export const sitesRelations = relations(sites, ({ one, many }) => ({
   keywords: many(keywords),
   alerts: many(alerts),
 }));
-
-export const environmentBranchMappingsRelations = relations(
-  environmentBranchMappings,
-  ({ one }) => ({
-    site: one(sites, {
-      fields: [environmentBranchMappings.siteId],
-      references: [sites.id],
-    }),
-  }),
-);
 
 export const healthCheckRunsRelations = relations(healthCheckRuns, ({ one }) => ({
   site: one(sites, { fields: [healthCheckRuns.siteId], references: [sites.id] }),
@@ -264,16 +244,12 @@ export const lighthouseRunsRelations = relations(lighthouseRuns, ({ one }) => ({
 
 export const driftCheckRunsRelations = relations(driftCheckRuns, ({ one, many }) => ({
   site: one(sites, { fields: [driftCheckRuns.siteId], references: [sites.id] }),
-  envMapping: one(environmentBranchMappings, {
-    fields: [driftCheckRuns.envMappingId],
-    references: [environmentBranchMappings.id],
-  }),
-  commits: many(driftCommits),
+  pullRequests: many(driftPullRequests),
 }));
 
-export const driftCommitsRelations = relations(driftCommits, ({ one }) => ({
+export const driftPullRequestsRelations = relations(driftPullRequests, ({ one }) => ({
   driftCheckRun: one(driftCheckRuns, {
-    fields: [driftCommits.driftCheckRunId],
+    fields: [driftPullRequests.driftCheckRunId],
     references: [driftCheckRuns.id],
   }),
 }));

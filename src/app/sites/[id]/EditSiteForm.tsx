@@ -13,6 +13,7 @@ export function EditSiteForm({
     previewUrl: string | null;
     githubOwner: string | null;
     githubRepo: string | null;
+    prodBranch: string | null;
   };
   action: (formData: FormData) => Promise<void>;
 }) {
@@ -67,6 +68,9 @@ export function EditSiteForm({
           <TextInput name="githubRepo" defaultValue={site.githubRepo ?? ""} />
         </Field>
       </div>
+      <Field label="Production branch">
+        <TextInput name="prodBranch" placeholder="main" defaultValue={site.prodBranch ?? ""} />
+      </Field>
       <div className="flex gap-2">
         <Button type="submit">Save</Button>
         <Button type="button" variant="ghost" onClick={() => setIsEditing(false)}>

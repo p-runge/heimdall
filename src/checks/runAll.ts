@@ -20,10 +20,23 @@ export async function runSiteChecks(site: Site) {
     site.githubOwner && site.githubRepo ? runDriftCheck(site) : Promise.resolve(null),
     runPreviewCheck(site),
   ]);
+  const [, , driftResult] = results;
 
   for (const result of results) {
     if (result.status === "rejected") {
       console.error(`site check failed for site ${site.id}:`, result.reason);
     }
   }
+
+  // The drift check is the one whose failure mode (bad branch name, GitHub
+  // API error) is worth surfacing on the page instead of just the log — the
+  // others already encode "couldn't check" as a normal falsy result.
+  const driftError =
+    driftResult.status === "fulfilled" && driftResult.value && "error" in driftResult.value
+      ? driftResult.value.error
+      : driftResult.status === "rejected"
+        ? String(driftResult.reason)
+        : null;
+
+  return { driftError };
 }

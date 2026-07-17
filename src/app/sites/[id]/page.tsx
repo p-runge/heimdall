@@ -22,6 +22,10 @@ import { EditSiteForm } from "./EditSiteForm";
 // platform's default Server Action timeout to resolve, especially with several keywords.
 export const maxDuration = 60;
 
+function daysSince(date: Date) {
+  return Math.floor((Date.now() - date.getTime()) / 86_400_000);
+}
+
 export default async function SiteDetailPage({
   params,
 }: {
@@ -33,20 +37,19 @@ export default async function SiteDetailPage({
   // so the panels below always reflect current state rather than the last cron tick.
   const siteForChecks = await db.query.sites.findFirst({ where: eq(sites.id, id) });
   if (!siteForChecks) notFound();
-  await runSiteChecks(siteForChecks);
+  const { driftError } = await runSiteChecks(siteForChecks);
 
   const site = await db.query.sites.findFirst({
     where: eq(sites.id, id),
     with: {
       client: true,
-      environmentBranchMappings: true,
       healthCheckRuns: { orderBy: desc(healthCheckRuns.checkedAt), limit: 1 },
       complianceCheckRuns: { orderBy: desc(complianceCheckRuns.checkedAt), limit: 1 },
       previewCheckRuns: { orderBy: desc(previewCheckRuns.checkedAt), limit: 1 },
       driftCheckRuns: {
         orderBy: desc(driftCheckRuns.checkedAt),
         limit: 1,
-        with: { commits: true },
+        with: { pullRequests: true },
       },
       keywords: {
         with: {
@@ -65,6 +68,7 @@ export default async function SiteDetailPage({
   const compliance = site.complianceCheckRuns[0];
   const preview = site.previewCheckRuns[0];
   const drift = site.driftCheckRuns[0];
+  const STALE_PR_DAYS = 3;
   const githubConfigured = isIntegrationConfigured("github");
   const dataforseoConfigured = isIntegrationConfigured("dataforseo");
   const setSeoWatcherWithIds = setSeoWatcher.bind(null, site.id, site.seoWatcherEnabled);
@@ -162,21 +166,45 @@ export default async function SiteDetailPage({
                   .
                 </Callout>
               </div>
+            ) : driftError ? (
+              <div className="mt-3">
+                <Callout tone="crimson">The last drift check failed: {driftError}</Callout>
+              </div>
             ) : drift ? (
               <div className="mt-3 space-y-2 text-sm">
-                <Badge tone={drift.commitsBehind > 0 ? "gold" : "aurora"}>
-                  {drift.commitsBehind > 0 ? `${drift.commitsBehind} undeployed commit(s)` : "in sync"}
-                </Badge>
-                <ul className="mt-2 space-y-1">
-                  {drift.commits.map((commit) => (
-                    <li key={commit.id} className="text-mist-400">
-                      <span className="font-mono text-xs text-mist-600">
-                        {commit.sha.slice(0, 7)}
-                      </span>{" "}
-                      {commit.message.split("\n")[0]}
-                    </li>
-                  ))}
-                </ul>
+                {drift.deploymentSha != null ? (
+                  <Badge tone={(drift.deploymentCommitsBehind ?? 0) > 0 ? "gold" : "aurora"}>
+                    {(drift.deploymentCommitsBehind ?? 0) > 0
+                      ? `${drift.deploymentCommitsBehind} commit(s) behind latest deploy`
+                      : "deployment in sync"}
+                  </Badge>
+                ) : (
+                  <div className="text-xs text-mist-600">No deployment data available.</div>
+                )}
+                {drift.pullRequests.length === 0 ? (
+                  <p className="text-mist-500">No open pull requests pending.</p>
+                ) : (
+                  <ul className="mt-2 space-y-1">
+                    {drift.pullRequests.map((pr) => {
+                      const daysOpen = daysSince(pr.prCreatedAt);
+                      return (
+                        <li key={pr.id} className="flex items-center gap-2 text-mist-400">
+                          <a
+                            href={pr.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="hover:text-mist-100"
+                          >
+                            #{pr.number} {pr.title}
+                          </a>
+                          {daysOpen >= STALE_PR_DAYS && (
+                            <Badge tone="gold">open {daysOpen}d</Badge>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
                 <div className="text-xs text-mist-600">
                   checked {drift.checkedAt.toLocaleString()}
                 </div>

@@ -14,7 +14,7 @@ export function getIntegrationStatuses(): IntegrationStatus[] {
       key: "github",
       name: "GitHub",
       configured: Boolean(process.env.GITHUB_TOKEN),
-      description: "Compares branches via the GitHub API to detect undeployed commits (drift checks).",
+      description: "Tracks open pull requests against the prod branch and deployment lag via the GitHub API (drift checks).",
       envVars: ["GITHUB_TOKEN"],
     },
     {

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { alerts, clients, environmentBranchMappings, keywords, sites } from "@/db/schema";
+import { alerts, clients, keywords, sites } from "@/db/schema";
 import { runHealthCheck } from "@/checks/health";
 import { runRankCheckNowForSite } from "@/checks/rank";
 
@@ -58,11 +58,10 @@ export async function createSite(formData: FormData) {
   const githubOwner = optionalString(formData, "githubOwner");
   const githubRepo = optionalString(formData, "githubRepo");
   const prodBranch = optionalString(formData, "prodBranch") ?? "main";
-  const compareBranch = optionalString(formData, "compareBranch");
 
   const [site] = await db
     .insert(sites)
-    .values({ clientId, name, primaryUrl, previewUrl, githubOwner, githubRepo })
+    .values({ clientId, name, primaryUrl, previewUrl, githubOwner, githubRepo, prodBranch })
     .returning();
 
   // Run the first health check right away rather than waiting for the next
@@ -72,24 +71,6 @@ export async function createSite(formData: FormData) {
     await runHealthCheck(site);
   } catch (err) {
     console.error(`initial health check failed for site ${site.id}:`, err);
-  }
-
-  if (githubOwner && githubRepo) {
-    await db.insert(environmentBranchMappings).values({
-      siteId: site.id,
-      envName: "production",
-      branchName: prodBranch,
-      isProdBranch: true,
-    });
-
-    if (compareBranch) {
-      await db.insert(environmentBranchMappings).values({
-        siteId: site.id,
-        envName: "compare",
-        branchName: compareBranch,
-        isProdBranch: false,
-      });
-    }
   }
 
   revalidatePath(`/clients/${clientId}`);
@@ -109,6 +90,7 @@ export async function updateSite(siteId: string, formData: FormData) {
   const previewUrl = optionalString(formData, "previewUrl");
   const githubOwner = optionalString(formData, "githubOwner");
   const githubRepo = optionalString(formData, "githubRepo");
+  const prodBranch = optionalString(formData, "prodBranch") ?? "main";
 
   await db
     .update(sites)
@@ -118,8 +100,10 @@ export async function updateSite(siteId: string, formData: FormData) {
       previewUrl: previewUrl ?? null,
       githubOwner: githubOwner ?? null,
       githubRepo: githubRepo ?? null,
+      prodBranch,
     })
     .where(eq(sites.id, siteId));
+
   revalidatePath(`/sites/${siteId}`);
   revalidatePath("/");
 }

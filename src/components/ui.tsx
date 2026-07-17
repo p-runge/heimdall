@@ -66,11 +66,12 @@ export function Callout({
   tone = "gold",
 }: {
   children: ReactNode;
-  tone?: "gold" | "neutral";
+  tone?: "gold" | "neutral" | "crimson";
 }) {
   const tones = {
     gold: "border-horn-gold/40 bg-horn-gold/5 text-horn-gold",
     neutral: "border-mist-700 bg-mist-800/20 text-mist-400",
+    crimson: "border-crimson/40 bg-crimson/5 text-crimson",
   } as const;
   return (
     <div className={`rounded-lg border px-3.5 py-2.5 text-sm ${tones[tone]}`}>{children}</div>

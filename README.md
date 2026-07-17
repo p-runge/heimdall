@@ -1,9 +1,10 @@
 # Heimdall
 
 The all-seeing dashboard for every website you maintain: uptime and TLS health,
-GitHub deploy drift (undeployed commits sitting in a branch), SEO rank
-tracking, preview-environment exposure, and heuristic legal/compliance checks
-(Impressum, Datenschutz, cookie consent).
+GitHub deploy drift (open pull requests pending merge, and production lagging
+behind the latest GitHub deployment), SEO rank tracking, preview-environment
+exposure, and heuristic legal/compliance checks (Impressum, Datenschutz,
+cookie consent).
 
 ## Local development
 
@@ -17,8 +18,9 @@ pnpm dev
 Copy `.env.example` to `.env.local` and fill in what you have:
 
 - `DATABASE_URL` — already points at the local `docker-compose` Postgres.
-- `GITHUB_TOKEN` — a fine-grained PAT with `contents:read`, used for drift
-  detection via `compareCommits`.
+- `GITHUB_TOKEN` — a fine-grained PAT with `contents:read`, `pull-requests:read`,
+  and `deployments:read`, used for drift detection (open PRs against the prod
+  branch, plus comparing the latest GitHub Deployment to the branch tip).
 - `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` — DataForSEO credentials for SEO
   rank tracking. Without these, rank checks are skipped (logged, not fatal).
 - `DISCORD_WEBHOOK_URL` — a Discord incoming webhook URL for alert
