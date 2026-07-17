@@ -37,6 +37,19 @@ export async function deleteClient(clientId: string) {
   redirect("/clients");
 }
 
+export async function updateClient(clientId: string, formData: FormData) {
+  const name = requireString(formData, "name");
+  const contactEmail = optionalString(formData, "contactEmail");
+  const notes = optionalString(formData, "notes");
+
+  await db
+    .update(clients)
+    .set({ name, contactEmail: contactEmail ?? null, notes: notes ?? null })
+    .where(eq(clients.id, clientId));
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/clients");
+}
+
 export async function createSite(formData: FormData) {
   const clientId = requireString(formData, "clientId");
   const name = requireString(formData, "name");
@@ -88,6 +101,27 @@ export async function deleteSite(siteId: string, clientId: string) {
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/");
   redirect(`/clients/${clientId}`);
+}
+
+export async function updateSite(siteId: string, formData: FormData) {
+  const name = requireString(formData, "name");
+  const primaryUrl = requireString(formData, "primaryUrl");
+  const previewUrl = optionalString(formData, "previewUrl");
+  const githubOwner = optionalString(formData, "githubOwner");
+  const githubRepo = optionalString(formData, "githubRepo");
+
+  await db
+    .update(sites)
+    .set({
+      name,
+      primaryUrl,
+      previewUrl: previewUrl ?? null,
+      githubOwner: githubOwner ?? null,
+      githubRepo: githubRepo ?? null,
+    })
+    .where(eq(sites.id, siteId));
+  revalidatePath(`/sites/${siteId}`);
+  revalidatePath("/");
 }
 
 export async function createKeyword(formData: FormData) {

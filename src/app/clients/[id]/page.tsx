@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { clients } from "@/db/schema";
-import { createSite, deleteClient } from "@/lib/actions";
+import { createSite, deleteClient, updateClient } from "@/lib/actions";
 import { Badge, Button, Field, Panel, TextInput } from "@/components/ui";
+import { EditClientForm } from "./EditClientForm";
 
 export default async function ClientDetailPage({
   params,
@@ -20,6 +21,7 @@ export default async function ClientDetailPage({
   if (!client) notFound();
 
   const deleteClientWithId = deleteClient.bind(null, client.id);
+  const updateClientWithId = updateClient.bind(null, client.id);
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-12">
@@ -28,12 +30,7 @@ export default async function ClientDetailPage({
           <Link href="/clients" className="text-sm text-mist-500 hover:text-mist-300">
             &larr; Clients
           </Link>
-          <h1 className="mt-2 font-display text-2xl tracking-wide text-mist-100">
-            {client.name}
-          </h1>
-          {client.contactEmail && (
-            <p className="mt-1 text-mist-400">{client.contactEmail}</p>
-          )}
+          <EditClientForm client={client} action={updateClientWithId} />
         </div>
         <form action={deleteClientWithId}>
           <Button variant="danger" type="submit">

@@ -4,11 +4,19 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { alerts, complianceCheckRuns, driftCheckRuns, healthCheckRuns, previewCheckRuns, rankCheckRuns, sites } from "@/db/schema";
 import { runSiteChecks } from "@/checks/runAll";
-import { createKeyword, deleteKeyword, deleteSite, runRankCheckNow, setSeoWatcher } from "@/lib/actions";
+import {
+  createKeyword,
+  deleteKeyword,
+  deleteSite,
+  runRankCheckNow,
+  setSeoWatcher,
+  updateSite,
+} from "@/lib/actions";
 import { isIntegrationConfigured } from "@/lib/integrations";
 import { describeCronInterval, getNextRun } from "@/lib/cronSchedule";
 import { Badge, Button, Callout, Field, Panel, TextInput } from "@/components/ui";
 import { RankCheckButton } from "./RankCheckButton";
+import { EditSiteForm } from "./EditSiteForm";
 
 // DataForSEO's live endpoint (used by "run check now") can take longer than the
 // platform's default Server Action timeout to resolve, especially with several keywords.
@@ -52,6 +60,7 @@ export default async function SiteDetailPage({
   if (!site) notFound();
 
   const deleteSiteWithIds = deleteSite.bind(null, site.id, site.clientId);
+  const updateSiteWithId = updateSite.bind(null, site.id);
   const health = site.healthCheckRuns[0];
   const compliance = site.complianceCheckRuns[0];
   const preview = site.previewCheckRuns[0];
@@ -73,17 +82,7 @@ export default async function SiteDetailPage({
           >
             &larr; {site.client.name}
           </Link>
-          <h1 className="mt-2 font-display text-2xl tracking-wide text-mist-100">
-            {site.name}
-          </h1>
-          <a
-            href={site.primaryUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-1 inline-block text-mist-400 hover:text-aurora-teal"
-          >
-            {site.primaryUrl}
-          </a>
+          <EditSiteForm site={site} action={updateSiteWithId} />
         </div>
         <form action={deleteSiteWithIds}>
           <Button variant="danger" type="submit">
