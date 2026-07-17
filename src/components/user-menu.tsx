@@ -1,26 +1,17 @@
-import { auth, signOut } from "@/auth";
+import { auth } from "@/auth";
+import { signOutAction } from "@/lib/auth-actions";
+import { UserMenuDropdown } from "@/components/user-menu-dropdown";
 
 export async function UserMenu() {
   const session = await auth();
   if (!session?.user) return null;
 
-  const label = session.user.name ?? session.user.email ?? "";
-
   return (
-    <div className="flex items-center gap-3 text-sm text-mist-300">
-      <span className="max-w-[10rem] truncate" title={session.user.email ?? undefined}>
-        {label}
-      </span>
-      <form
-        action={async () => {
-          "use server";
-          await signOut({ redirectTo: "/login" });
-        }}
-      >
-        <button type="submit" className="hover:text-mist-100 transition-colors">
-          Sign out
-        </button>
-      </form>
-    </div>
+    <UserMenuDropdown
+      name={session.user.name ?? null}
+      email={session.user.email ?? null}
+      image={session.user.image ?? null}
+      onSignOut={signOutAction}
+    />
   );
 }

@@ -39,22 +39,24 @@ export default function RootLayout({
       className={`${cinzel.variable} ${inter.variable} ${geistMono.variable} h-full`}
     >
       <body className="min-h-full flex flex-col bg-void font-sans antialiased">
-        <header className="border-b border-mist-800/60 bg-void-raised/80 backdrop-blur">
+        <header className="relative z-40 border-b border-mist-800/60 bg-void-raised/80 backdrop-blur">
           <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
             <Logo />
-            <nav className="flex items-center gap-6 text-sm text-mist-300">
-              <Link href="/" className="hover:text-mist-100 transition-colors">
-                Watchtower
-              </Link>
-              <Link href="/clients" className="hover:text-mist-100 transition-colors">
-                Clients
-              </Link>
-              <AlertsNavLink />
-              <Link href="/settings" className="hover:text-mist-100 transition-colors">
-                Settings
-              </Link>
-            </nav>
-            <UserMenu />
+            <div className="flex items-center gap-6">
+              <nav className="flex items-center gap-6 text-sm text-mist-300">
+                <Link href="/" className="hover:text-mist-100 transition-colors">
+                  Watchtower
+                </Link>
+                <Link href="/clients" className="hover:text-mist-100 transition-colors">
+                  Clients
+                </Link>
+                <Link href="/settings" className="hover:text-mist-100 transition-colors">
+                  Settings
+                </Link>
+                <AlertsNavLink />
+              </nav>
+              <UserMenu />
+            </div>
           </div>
         </header>
         <main className="flex-1">{children}</main>
