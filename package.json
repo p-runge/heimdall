@@ -15,6 +15,7 @@
     "cron:local:now": "tsx scripts/local-cron.ts --now"
   },
   "dependencies": {
+    "@t3-oss/env-nextjs": "^0.13.11",
     "cheerio": "^1.2.0",
     "croner": "^10.0.1",
     "drizzle-orm": "^0.45.2",
