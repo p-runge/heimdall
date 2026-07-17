@@ -26,6 +26,10 @@ export const metadata: Metadata = {
   title: "Heimdall — All-Seeing Site Watch",
   description:
     "Health, deploy-drift, and SEO rank monitoring for every website you maintain.",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default function RootLayout({
