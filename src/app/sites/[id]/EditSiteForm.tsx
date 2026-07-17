@@ -55,10 +55,10 @@ export function EditSiteForm({
         <TextInput name="name" required defaultValue={site.name} />
       </Field>
       <Field label="Primary URL">
-        <TextInput name="primaryUrl" required type="url" defaultValue={site.primaryUrl} />
+        <TextInput name="primaryUrl" required defaultValue={site.primaryUrl} />
       </Field>
       <Field label="Preview URL (optional)">
-        <TextInput name="previewUrl" type="url" defaultValue={site.previewUrl ?? ""} />
+        <TextInput name="previewUrl" defaultValue={site.previewUrl ?? ""} />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="GitHub owner">

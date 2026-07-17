@@ -22,6 +22,15 @@ function optionalString(formData: FormData, key: string) {
   return value.trim();
 }
 
+function normalizeUrl<T extends string | undefined>(value: T): T {
+  if (value === undefined) return value;
+  const lowercased = value.toLowerCase();
+  const normalized = /^[a-z][a-z0-9+.-]*:\/\//i.test(lowercased)
+    ? lowercased
+    : `https://${lowercased}`;
+  return normalized as T;
+}
+
 export async function createClient(formData: FormData) {
   const name = requireString(formData, "name");
   const contactEmail = optionalString(formData, "contactEmail");
@@ -53,8 +62,8 @@ export async function updateClient(clientId: string, formData: FormData) {
 export async function createSite(formData: FormData) {
   const clientId = requireString(formData, "clientId");
   const name = requireString(formData, "name");
-  const primaryUrl = requireString(formData, "primaryUrl");
-  const previewUrl = optionalString(formData, "previewUrl");
+  const primaryUrl = normalizeUrl(requireString(formData, "primaryUrl"));
+  const previewUrl = normalizeUrl(optionalString(formData, "previewUrl"));
   const githubOwner = optionalString(formData, "githubOwner");
   const githubRepo = optionalString(formData, "githubRepo");
   const prodBranch = optionalString(formData, "prodBranch") ?? "main";
@@ -86,8 +95,8 @@ export async function deleteSite(siteId: string, clientId: string) {
 
 export async function updateSite(siteId: string, formData: FormData) {
   const name = requireString(formData, "name");
-  const primaryUrl = requireString(formData, "primaryUrl");
-  const previewUrl = optionalString(formData, "previewUrl");
+  const primaryUrl = normalizeUrl(requireString(formData, "primaryUrl"));
+  const previewUrl = normalizeUrl(optionalString(formData, "previewUrl"));
   const githubOwner = optionalString(formData, "githubOwner");
   const githubRepo = optionalString(formData, "githubRepo");
   const prodBranch = optionalString(formData, "prodBranch") ?? "main";

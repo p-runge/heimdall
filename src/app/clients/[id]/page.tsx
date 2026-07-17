@@ -82,15 +82,13 @@ export default async function ClientDetailPage({
               <TextInput
                 name="primaryUrl"
                 required
-                type="url"
-                placeholder="https://acme.com"
+                placeholder="acme.com"
               />
             </Field>
             <Field label="Preview URL (optional)">
               <TextInput
                 name="previewUrl"
-                type="url"
-                placeholder="https://staging.acme.com"
+                placeholder="staging.acme.com"
               />
             </Field>
             <div className="grid grid-cols-2 gap-3">
