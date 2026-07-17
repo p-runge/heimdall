@@ -45,6 +45,11 @@ function isDomainMatch(target: string, candidate: string) {
   return c === t || c.endsWith(`.${t}`);
 }
 
+// DataForSEO's per-task status for "the SERP had zero organic results for this
+// keyword/location/language/device combo" — a legitimate empty outcome (e.g. the
+// query is dominated by shopping/product results), not an API or account failure.
+const NO_SEARCH_RESULTS_STATUS_CODE = 40102;
+
 function extractRanking(
   targetDomain: string | undefined,
   items?: { type?: string; domain?: string; url?: string; rank_absolute?: number }[],
@@ -110,9 +115,15 @@ export const dataForSeoProvider: RankProvider = {
     });
     const data = (await res.json()) as DataForSeoTaskGetResponse;
     const task = data.tasks?.[0];
+    if (!task) return null;
+
+    // A zero-result SERP is a resolved outcome, not a reason to keep waiting.
+    if (task.status_code === NO_SEARCH_RESULTS_STATUS_CODE) {
+      return { position: null, rankedUrl: null };
+    }
 
     // status_code 20000 = task complete; anything still queued/in-progress yields no result yet.
-    if (!task || task.status_code !== 20000) return null;
+    if (task.status_code !== 20000) return null;
 
     const result = task.result?.[0];
     if (!result) return { position: null, rankedUrl: null };
@@ -140,6 +151,12 @@ export const dataForSeoProvider: RankProvider = {
 
     const data = (await res.json()) as DataForSeoTaskGetResponse;
     const task = data.tasks?.[0];
+
+    // A zero-result SERP is a resolved "not ranking" outcome, not an API failure.
+    if (task?.status_code === NO_SEARCH_RESULTS_STATUS_CODE) {
+      return { position: null, rankedUrl: null };
+    }
+
     if (!task || task.status_code !== 20000) {
       throw new Error(`DataForSEO live check failed: ${task?.status_message ?? "unknown error"}`);
     }
