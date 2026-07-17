@@ -80,9 +80,11 @@ export function Callout({
 export function Badge({
   children,
   tone = "neutral",
+  title,
 }: {
   children: ReactNode;
   tone?: "neutral" | "gold" | "crimson" | "aurora";
+  title?: string;
 }) {
   const tones = {
     neutral: "border-mist-700 text-mist-300",
@@ -92,6 +94,7 @@ export function Badge({
   } as const;
   return (
     <span
+      title={title}
       className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${tones[tone]}`}
     >
       {children}

@@ -18,6 +18,44 @@ function getAuthHeader() {
   return `Basic ${Buffer.from(`${login}:${password}`).toString("base64")}`;
 }
 
+function buildTaskPayload({ keyword, domain, country, device, language }: RankCheckParams) {
+  return [
+    {
+      keyword,
+      location_code: COUNTRY_LOCATION_CODES[country] ?? COUNTRY_LOCATION_CODES.de,
+      language_code: language ?? "de",
+      device,
+      target: domain,
+    },
+  ];
+}
+
+// Strips a leading "www." and lowercases so "www.bulkratte.de" and "bulkratte.de"
+// are treated as the same site regardless of which way primaryUrl is stored.
+function normalizeDomain(host: string) {
+  return host.toLowerCase().replace(/^www\./, "");
+}
+
+// True if `candidate` is the target domain itself or a subdomain of it. Using
+// endsWith on the normalized suffix (rather than a plain substring check) also
+// avoids false positives like "notbulkratte.de" matching target "bulkratte.de".
+function isDomainMatch(target: string, candidate: string) {
+  const t = normalizeDomain(target);
+  const c = normalizeDomain(candidate);
+  return c === t || c.endsWith(`.${t}`);
+}
+
+function extractRanking(
+  targetDomain: string | undefined,
+  items?: { type?: string; domain?: string; url?: string; rank_absolute?: number }[],
+): { position: number | null; rankedUrl: string | null } {
+  if (!targetDomain) return { position: null, rankedUrl: null };
+  const match = items?.find(
+    (item) => item.type === "organic" && item.domain && isDomainMatch(targetDomain, item.domain),
+  );
+  return { position: match?.rank_absolute ?? null, rankedUrl: match?.url ?? null };
+}
+
 interface DataForSeoTaskPostResponse {
   status_message?: string;
   tasks?: { id?: string; status_message?: string }[] | null;
@@ -26,6 +64,7 @@ interface DataForSeoTaskPostResponse {
 interface DataForSeoTaskGetResponse {
   tasks?: {
     status_code?: number;
+    status_message?: string;
     data?: { target?: string };
     result?: {
       se_results_count?: number;
@@ -44,15 +83,7 @@ export const dataForSeoProvider: RankProvider = {
     const res = await fetch(`${DATAFORSEO_BASE}/serp/google/organic/task_post`, {
       method: "POST",
       headers: { Authorization: auth, "Content-Type": "application/json" },
-      body: JSON.stringify([
-        {
-          keyword,
-          location_code: COUNTRY_LOCATION_CODES[country] ?? COUNTRY_LOCATION_CODES.de,
-          language_code: language ?? "de",
-          device,
-          target: domain,
-        },
-      ]),
+      body: JSON.stringify(buildTaskPayload({ keyword, domain, country, device, language })),
     });
 
     const data = (await res.json()) as DataForSeoTaskPostResponse;
@@ -86,15 +117,37 @@ export const dataForSeoProvider: RankProvider = {
     const result = task.result?.[0];
     if (!result) return { position: null, rankedUrl: null };
 
-    const targetDomain = task.data?.target;
-    const match = result.items?.find(
-      (item) => item.type === "organic" && item.domain && targetDomain && item.domain.includes(targetDomain),
-    );
+    const { position, rankedUrl } = extractRanking(task.data?.target, result.items);
+    return { position, rankedUrl, serpFeatures: { seResultsCount: result.se_results_count } };
+  },
 
-    return {
-      position: match?.rank_absolute ?? null,
-      rankedUrl: match?.url ?? null,
-      serpFeatures: { seResultsCount: result.se_results_count },
-    };
+  // Used for on-demand "run check now" checks: DataForSEO's live endpoint resolves
+  // synchronously in the same request instead of requiring a task_post + poll round trip,
+  // so a manual check never sits in "pending" waiting for the next cron tick.
+  async checkNow({ keyword, domain, country, device, language }: RankCheckParams): Promise<RankCheckResult> {
+    const auth = getAuthHeader();
+    if (!auth) throw new Error("DataForSEO credentials are not configured (DATAFORSEO_LOGIN/PASSWORD)");
+
+    const res = await fetch(`${DATAFORSEO_BASE}/serp/google/organic/live/advanced`, {
+      method: "POST",
+      headers: { Authorization: auth, "Content-Type": "application/json" },
+      body: JSON.stringify(buildTaskPayload({ keyword, domain, country, device, language })),
+    });
+
+    if (!res.ok) {
+      throw new Error(`DataForSEO live request failed: ${res.status} ${res.statusText}`);
+    }
+
+    const data = (await res.json()) as DataForSeoTaskGetResponse;
+    const task = data.tasks?.[0];
+    if (!task || task.status_code !== 20000) {
+      throw new Error(`DataForSEO live check failed: ${task?.status_message ?? "unknown error"}`);
+    }
+
+    const result = task.result?.[0];
+    if (!result) return { position: null, rankedUrl: null };
+
+    const { position, rankedUrl } = extractRanking(domain, result.items);
+    return { position, rankedUrl, serpFeatures: { seResultsCount: result.se_results_count } };
   },
 };

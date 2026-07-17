@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { alerts, clients, environmentBranchMappings, keywords, sites } from "@/db/schema";
 import { runHealthCheck } from "@/checks/health";
-import { submitRankChecksForSite } from "@/checks/rank";
+import { runRankCheckNowForSite } from "@/checks/rank";
 
 function requireString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -113,12 +113,37 @@ export async function setSeoWatcher(siteId: string, currentlyEnabled: boolean) {
   revalidatePath(`/sites/${siteId}`);
 }
 
-export async function runRankCheckNow(siteId: string) {
+export interface RankCheckActionState {
+  status: "idle" | "success" | "error";
+  message?: string;
+}
+
+export async function runRankCheckNow(
+  siteId: string,
+  _prevState: RankCheckActionState,
+  _formData: FormData,
+): Promise<RankCheckActionState> {
   const site = await db.query.sites.findFirst({ where: eq(sites.id, siteId) });
   if (!site) throw new Error("site not found");
 
-  await submitRankChecksForSite(site);
+  const summary = await runRankCheckNowForSite(site);
   revalidatePath(`/sites/${siteId}`);
+
+  if (summary.checked === 0 && summary.failed.length === 0) {
+    return { status: "success", message: "No active keywords to check." };
+  }
+  if (summary.failed.length > 0) {
+    return {
+      status: "error",
+      message: `Checked ${summary.checked} keyword(s), ${summary.failed.length} failed: ${summary.failed
+        .map((f) => `"${f.keyword}" (${f.error})`)
+        .join(", ")}`,
+    };
+  }
+  return {
+    status: "success",
+    message: `Checked ${summary.checked} keyword${summary.checked === 1 ? "" : "s"}.`,
+  };
 }
 
 export async function acknowledgeAlert(alertId: string) {

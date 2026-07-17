@@ -15,6 +15,58 @@ function domainOf(url: string) {
   }
 }
 
+export interface RankCheckNowSummary {
+  checked: number;
+  failed: { keyword: string; error: string }[];
+}
+
+// Used by the "run check now" button: resolves every active keyword synchronously via
+// the provider's live endpoint and writes a completed run row directly, so the UI never
+// has to show a stale "pending" state waiting on the async submit+poll cron cycle.
+export async function runRankCheckNowForSite(
+  site: typeof sites.$inferSelect,
+): Promise<RankCheckNowSummary> {
+  const siteKeywords = await db.query.keywords.findMany({
+    where: and(eq(keywords.siteId, site.id), eq(keywords.isActive, true)),
+  });
+
+  const domain = domainOf(site.primaryUrl);
+  const summary: RankCheckNowSummary = { checked: 0, failed: [] };
+
+  for (const keyword of siteKeywords) {
+    try {
+      const result = await provider.checkNow({
+        keyword: keyword.phrase,
+        domain,
+        country: keyword.country,
+        device: keyword.device,
+      });
+
+      const [run] = await db
+        .insert(rankCheckRuns)
+        .values({
+          keywordId: keyword.id,
+          provider: provider.name,
+          position: result.position,
+          rankedUrl: result.rankedUrl,
+          serpFeatures: result.serpFeatures ?? {},
+        })
+        .returning();
+
+      summary.checked += 1;
+      await evaluateRankAlert({ ...keyword, site }, run.id, result.position);
+    } catch (err) {
+      console.error(`rank check-now failed for keyword ${keyword.id}:`, err);
+      summary.failed.push({
+        keyword: keyword.phrase,
+        error: err instanceof Error ? err.message : "unknown error",
+      });
+    }
+  }
+
+  return summary;
+}
+
 export async function submitRankChecksForSite(site: typeof sites.$inferSelect) {
   const siteKeywords = await db.query.keywords.findMany({
     where: and(eq(keywords.siteId, site.id), eq(keywords.isActive, true)),

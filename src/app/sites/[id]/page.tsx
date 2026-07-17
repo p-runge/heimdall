@@ -7,6 +7,11 @@ import { createKeyword, deleteKeyword, deleteSite, runRankCheckNow, setSeoWatche
 import { isIntegrationConfigured } from "@/lib/integrations";
 import { describeCronInterval, getNextRun } from "@/lib/cronSchedule";
 import { Badge, Button, Callout, Field, Panel, TextInput } from "@/components/ui";
+import { RankCheckButton } from "./RankCheckButton";
+
+// DataForSEO's live endpoint (used by "run check now") can take longer than the
+// platform's default Server Action timeout to resolve, especially with several keywords.
+export const maxDuration = 60;
 
 export default async function SiteDetailPage({
   params,
@@ -251,11 +256,7 @@ export default async function SiteDetailPage({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <form action={runRankCheckNowWithIds}>
-              <Button variant="ghost" type="submit" disabled={!dataforseoConfigured}>
-                Run check now
-              </Button>
-            </form>
+            <RankCheckButton action={runRankCheckNowWithIds} disabled={!dataforseoConfigured} />
             <form action={setSeoWatcherWithIds}>
               <Button variant={site.seoWatcherEnabled ? "danger" : "primary"} type="submit">
                 {site.seoWatcherEnabled ? "Turn off" : "Turn on"}
@@ -286,7 +287,30 @@ export default async function SiteDetailPage({
             )}
             {site.keywords.map((keyword) => {
               const latestRank = keyword.rankCheckRuns[0];
+              // A run created by the async submit+poll cron flow starts as
+              // { pending: true } in serpFeatures and is only overwritten once
+              // rank-poll resolves it — until then it's still in progress, not "not ranking".
+              const isChecking =
+                !!latestRank &&
+                (latestRank.serpFeatures as { pending?: boolean } | null)?.pending === true;
               const deleteKeywordWithIds = deleteKeyword.bind(null, keyword.id, site.id);
+
+              let label: string;
+              let tone: "neutral" | "gold" | "crimson" | "aurora";
+              if (!latestRank) {
+                label = "not checked yet";
+                tone = "neutral";
+              } else if (isChecking) {
+                label = "checking…";
+                tone = "gold";
+              } else if (latestRank.position) {
+                label = `#${latestRank.position}`;
+                tone = "aurora";
+              } else {
+                label = "not ranking";
+                tone = "neutral";
+              }
+
               return (
                 <Panel key={keyword.id} className="flex items-center justify-between">
                   <div>
@@ -296,13 +320,9 @@ export default async function SiteDetailPage({
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    {latestRank ? (
-                      <Badge tone={latestRank.position ? "aurora" : "neutral"}>
-                        {latestRank.position ? `#${latestRank.position}` : "not ranking"}
-                      </Badge>
-                    ) : (
-                      <Badge tone="neutral">pending</Badge>
-                    )}
+                    <Badge tone={tone} title={latestRank ? `checked ${latestRank.checkedAt.toLocaleString()}` : undefined}>
+                      {label}
+                    </Badge>
                     <form action={deleteKeywordWithIds}>
                       <Button variant="ghost" type="submit" className="px-2 py-1 text-xs">
                         remove
