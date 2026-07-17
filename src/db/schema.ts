@@ -11,6 +11,16 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  googleSub: text("google_sub").notNull().unique(),
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  avatarUrl: text("avatar_url"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  lastLoginAt: timestamp("last_login_at"),
+});
+
 export const alertTypeEnum = pgEnum("alert_type", [
   "site_down",
   "cert_expiring",

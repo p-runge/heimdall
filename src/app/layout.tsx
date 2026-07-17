@@ -3,6 +3,7 @@ import { Cinzel, Inter, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { AlertsNavLink } from "@/components/alerts-nav-link";
+import { UserMenu } from "@/components/user-menu";
 import "./globals.css";
 
 const cinzel = Cinzel({
@@ -53,6 +54,7 @@ export default function RootLayout({
                 Settings
               </Link>
             </nav>
+            <UserMenu />
           </div>
         </header>
         <main className="flex-1">{children}</main>
