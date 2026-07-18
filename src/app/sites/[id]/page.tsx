@@ -27,20 +27,8 @@ function daysSince(date: Date) {
   return Math.floor((Date.now() - date.getTime()) / 86_400_000);
 }
 
-export default async function SiteDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-
-  // Every check except the paid SEO/rank check runs on each visit to this page,
-  // so the panels below always reflect current state rather than the last cron tick.
-  const siteForChecks = await db.query.sites.findFirst({ where: eq(sites.id, id) });
-  if (!siteForChecks) notFound();
-  const { driftError } = await runSiteChecks(siteForChecks);
-
-  const site = await db.query.sites.findFirst({
+function getSiteDetail(id: string) {
+  return db.query.sites.findFirst({
     where: eq(sites.id, id),
     with: {
       client: true,
@@ -60,6 +48,25 @@ export default async function SiteDetailPage({
       alerts: { where: eq(alerts.status, "open") },
     },
   });
+}
+
+export default async function SiteDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+
+  // Every check except the paid SEO/rank check runs on each visit to this page
+  // (throttled per-check inside runSiteChecks), so the panels below reflect
+  // current state rather than the last cron tick.
+  const siteBeforeChecks = await getSiteDetail(id);
+  if (!siteBeforeChecks) notFound();
+  const { driftError, ranAnyCheck } = await runSiteChecks(siteBeforeChecks);
+
+  // Only re-query if a check actually ran and could have written fresh rows —
+  // otherwise the data we already have is still current.
+  const site = ranAnyCheck ? await getSiteDetail(id) : siteBeforeChecks;
 
   if (!site) notFound();
 
