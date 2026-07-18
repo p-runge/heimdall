@@ -11,6 +11,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
+    "db:migrate:prod": "tsx scripts/migrate-prod.ts",
     "cron:local": "tsx scripts/local-cron.ts",
     "cron:local:now": "tsx scripts/local-cron.ts --now"
   },
