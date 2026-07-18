@@ -3,13 +3,14 @@ import type { ReactNode } from "react";
 export function Panel({
   children,
   className = "",
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
+  ref,
+  ...props
+}: React.ComponentProps<"div"> & { ref?: React.Ref<HTMLDivElement> }) {
   return (
     <div
+      ref={ref}
       className={`rounded-xl border border-mist-800/70 bg-void-panel/60 p-6 ${className}`}
+      {...props}
     >
       {children}
     </div>

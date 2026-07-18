@@ -17,6 +17,7 @@ import {
   createKeyword,
   deleteKeyword,
   deleteSite,
+  reorderKeywords,
   runRankCheckNow,
   setSeoWatcher,
   updateSite,
@@ -28,6 +29,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { RankCheckButton } from "./RankCheckButton";
 import { EditSiteForm } from "./EditSiteForm";
 import { RankHistoryChart } from "./RankHistoryChart";
+import { KeywordList, type KeywordListItem } from "./KeywordList";
 
 // DataForSEO's live endpoint (used by "run check now") can take longer than the
 // platform's default Server Action timeout to resolve, especially with several keywords.
@@ -43,6 +45,7 @@ function getRankHistory(siteId: string) {
   const cutoff = new Date(Date.now() - RANK_HISTORY_DAYS * 86_400_000);
   return db.query.keywords.findMany({
     where: eq(keywords.siteId, siteId),
+    orderBy: asc(keywords.sortOrder),
     columns: { id: true, phrase: true, device: true },
     with: {
       rankCheckRuns: {
@@ -73,6 +76,7 @@ function getSiteDetail(id: string) {
         with: { pullRequests: true },
       },
       keywords: {
+        orderBy: asc(keywords.sortOrder),
         with: {
           rankCheckRuns: { orderBy: desc(rankCheckRuns.checkedAt), limit: 1 },
         },
@@ -120,6 +124,43 @@ export default async function SiteDetailPage({
   const runRankCheckNowWithIds = runRankCheckNow.bind(null, site.id);
   const rankSubmitInterval = describeCronInterval("/api/cron/rank-submit");
   const nextRankCheck = site.seoWatcherEnabled ? getNextRun("/api/cron/rank-submit") : null;
+
+  const keywordItems: KeywordListItem[] = site.keywords.map((keyword) => {
+    const latestRank = keyword.rankCheckRuns[0];
+    // A run created by the async submit+poll cron flow starts as
+    // { pending: true } in serpFeatures and is only overwritten once
+    // rank-poll resolves it — until then it's still in progress, not "not ranking".
+    const isChecking =
+      !!latestRank &&
+      (latestRank.serpFeatures as { pending?: boolean } | null)?.pending === true;
+
+    let label: string;
+    let tone: "neutral" | "gold" | "crimson" | "aurora";
+    if (!latestRank) {
+      label = "not checked yet";
+      tone = "neutral";
+    } else if (isChecking) {
+      label = "checking…";
+      tone = "gold";
+    } else if (latestRank.position) {
+      label = `#${latestRank.position}`;
+      tone = "aurora";
+    } else {
+      label = "not ranking";
+      tone = "neutral";
+    }
+
+    return {
+      id: keyword.id,
+      phrase: keyword.phrase,
+      country: keyword.country,
+      device: keyword.device,
+      label,
+      tone,
+      checkedTitle: latestRank ? `checked ${latestRank.checkedAt.toLocaleString()}` : undefined,
+      deleteAction: deleteKeyword.bind(null, keyword.id, site.id),
+    };
+  });
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-12">
@@ -364,62 +405,17 @@ export default async function SiteDetailPage({
               </Callout>
             </div>
           )}
-          <div className="mt-3 space-y-2">
-            {site.keywords.length === 0 && (
+          {site.keywords.length === 0 ? (
+            <div className="mt-3">
               <Panel className="text-mist-500">No keywords tracked yet.</Panel>
-            )}
-            {site.keywords.map((keyword) => {
-              const latestRank = keyword.rankCheckRuns[0];
-              // A run created by the async submit+poll cron flow starts as
-              // { pending: true } in serpFeatures and is only overwritten once
-              // rank-poll resolves it — until then it's still in progress, not "not ranking".
-              const isChecking =
-                !!latestRank &&
-                (latestRank.serpFeatures as { pending?: boolean } | null)?.pending === true;
-              const deleteKeywordWithIds = deleteKeyword.bind(null, keyword.id, site.id);
-
-              let label: string;
-              let tone: "neutral" | "gold" | "crimson" | "aurora";
-              if (!latestRank) {
-                label = "not checked yet";
-                tone = "neutral";
-              } else if (isChecking) {
-                label = "checking…";
-                tone = "gold";
-              } else if (latestRank.position) {
-                label = `#${latestRank.position}`;
-                tone = "aurora";
-              } else {
-                label = "not ranking";
-                tone = "neutral";
-              }
-
-              return (
-                <Panel key={keyword.id} className="flex items-center justify-between">
-                  <div>
-                    <div className="text-mist-100">{keyword.phrase}</div>
-                    <div className="text-xs text-mist-500">
-                      {keyword.country.toUpperCase()} &middot; {keyword.device}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Badge tone={tone} title={latestRank ? `checked ${latestRank.checkedAt.toLocaleString()}` : undefined}>
-                      {label}
-                    </Badge>
-                    <form action={deleteKeywordWithIds}>
-                      <SubmitButton
-                        variant="ghost"
-                        className="px-2 py-1 text-xs"
-                        pendingText="Removing…"
-                      >
-                        remove
-                      </SubmitButton>
-                    </form>
-                  </div>
-                </Panel>
-              );
-            })}
-          </div>
+            </div>
+          ) : (
+            <KeywordList
+              siteId={site.id}
+              keywords={keywordItems}
+              reorderAction={reorderKeywords}
+            />
+          )}
         </div>
 
         <Panel>

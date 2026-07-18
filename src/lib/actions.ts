@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { alerts, clients, keywords, sites } from "@/db/schema";
 import { runHealthCheck } from "@/checks/health";
@@ -123,12 +123,33 @@ export async function createKeyword(formData: FormData) {
   const country = optionalString(formData, "country") ?? "de";
   const device = optionalString(formData, "device") === "mobile" ? "mobile" : "desktop";
 
-  await db.insert(keywords).values({ siteId, phrase, country, device });
+  await db.insert(keywords).values({
+    siteId,
+    phrase,
+    country,
+    device,
+    // Append to the end of this site's keyword order.
+    sortOrder: sql`(select coalesce(max(${keywords.sortOrder}), -1) + 1 from ${keywords} where ${keywords.siteId} = ${siteId})`,
+  });
   revalidatePath(`/sites/${siteId}`);
 }
 
 export async function deleteKeyword(keywordId: string, siteId: string) {
   await db.delete(keywords).where(eq(keywords.id, keywordId));
+  revalidatePath(`/sites/${siteId}`);
+}
+
+export async function reorderKeywords(siteId: string, orderedKeywordIds: string[]) {
+  await db.transaction(async (tx) => {
+    await Promise.all(
+      orderedKeywordIds.map((keywordId, index) =>
+        tx
+          .update(keywords)
+          .set({ sortOrder: index })
+          .where(and(eq(keywords.id, keywordId), eq(keywords.siteId, siteId))),
+      ),
+    );
+  });
   revalidatePath(`/sites/${siteId}`);
 }
 

@@ -29,6 +29,13 @@
       "when": 1784286313177,
       "tag": "0003_glorious_legion",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784416170527,
+      "tag": "0004_add_keyword_sort_order",
+      "breakpoints": true
     }
   ]
 }

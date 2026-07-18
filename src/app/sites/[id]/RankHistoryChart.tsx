@@ -105,6 +105,7 @@ function buildOption(series: RankHistoryKeyword[]): ChartOption {
     yAxis: {
       type: "value",
       inverse: true,
+      min: 1,
       minInterval: 1,
       axisLabel: { color: THEME.axisLabel, formatter: "#{value}" },
       axisLine: { show: false },
