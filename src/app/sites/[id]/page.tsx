@@ -1,8 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, gte, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { alerts, complianceCheckRuns, driftCheckRuns, healthCheckRuns, previewCheckRuns, rankCheckRuns, sites } from "@/db/schema";
+import {
+  alerts,
+  complianceCheckRuns,
+  driftCheckRuns,
+  healthCheckRuns,
+  keywords,
+  previewCheckRuns,
+  rankCheckRuns,
+  sites,
+} from "@/db/schema";
 import { runSiteChecks } from "@/checks/runAll";
 import {
   createKeyword,
@@ -18,6 +27,7 @@ import { Badge, Callout, Field, Panel, TextInput } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 import { RankCheckButton } from "./RankCheckButton";
 import { EditSiteForm } from "./EditSiteForm";
+import { RankHistoryChart } from "./RankHistoryChart";
 
 // DataForSEO's live endpoint (used by "run check now") can take longer than the
 // platform's default Server Action timeout to resolve, especially with several keywords.
@@ -25,6 +35,28 @@ export const maxDuration = 60;
 
 function daysSince(date: Date) {
   return Math.floor((Date.now() - date.getTime()) / 86_400_000);
+}
+
+const RANK_HISTORY_DAYS = 90;
+
+function getRankHistory(siteId: string) {
+  const cutoff = new Date(Date.now() - RANK_HISTORY_DAYS * 86_400_000);
+  return db.query.keywords.findMany({
+    where: eq(keywords.siteId, siteId),
+    columns: { id: true, phrase: true, device: true },
+    with: {
+      rankCheckRuns: {
+        where: and(
+          gte(rankCheckRuns.checkedAt, cutoff),
+          // Excludes pending submit+poll placeholders (no real signal yet)
+          // while keeping genuine null-position "not ranking" rows.
+          sql`(${rankCheckRuns.serpFeatures} ->> 'pending') is distinct from 'true'`,
+        ),
+        orderBy: asc(rankCheckRuns.checkedAt),
+        columns: { checkedAt: true, position: true },
+      },
+    },
+  });
 }
 
 function getSiteDetail(id: string) {
@@ -60,7 +92,10 @@ export default async function SiteDetailPage({
   // Every check except the paid SEO/rank check runs on each visit to this page
   // (throttled per-check inside runSiteChecks), so the panels below reflect
   // current state rather than the last cron tick.
-  const siteBeforeChecks = await getSiteDetail(id);
+  const [siteBeforeChecks, rankHistory] = await Promise.all([
+    getSiteDetail(id),
+    getRankHistory(id),
+  ]);
   if (!siteBeforeChecks) notFound();
   const { driftError, ranAnyCheck } = await runSiteChecks(siteBeforeChecks);
 
@@ -69,6 +104,8 @@ export default async function SiteDetailPage({
   const site = ranAnyCheck ? await getSiteDetail(id) : siteBeforeChecks;
 
   if (!site) notFound();
+
+  const hasAnyRankHistory = rankHistory.some((k) => k.rankCheckRuns.length > 0);
 
   const deleteSiteWithIds = deleteSite.bind(null, site.id, site.clientId);
   const updateSiteWithId = updateSite.bind(null, site.id);
@@ -411,6 +448,26 @@ export default async function SiteDetailPage({
           </form>
         </Panel>
       </div>
+
+      {site.keywords.length > 0 && (
+        <div className="mt-8">
+          <Panel>
+            <h2 className="font-display text-lg tracking-wide text-mist-100">Rank history</h2>
+            <p className="mt-1 text-xs text-mist-500">Last {RANK_HISTORY_DAYS} days</p>
+            {hasAnyRankHistory ? (
+              <div className="mt-4">
+                <RankHistoryChart keywords={rankHistory} />
+              </div>
+            ) : (
+              <div className="mt-4">
+                <Callout>
+                  No rank history yet — checks will appear here once your SEO watcher runs.
+                </Callout>
+              </div>
+            )}
+          </Panel>
+        </div>
+      )}
     </div>
   );
 }

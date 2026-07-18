@@ -19,6 +19,7 @@
     "cheerio": "^1.2.0",
     "croner": "^10.0.1",
     "drizzle-orm": "^0.45.2",
+    "echarts": "^6.1.0",
     "next": "16.2.10",
     "next-auth": "5.0.0-beta.31",
     "octokit": "^5.0.5",
