@@ -11,6 +11,15 @@ const COUNTRY_LOCATION_CODES: Record<string, number> = {
   gb: 2826,
 };
 
+// DataForSEO language_code per country — extend alongside COUNTRY_LOCATION_CODES.
+const COUNTRY_LANGUAGE_CODES: Record<string, string> = {
+  de: "de",
+  us: "en",
+  at: "de",
+  ch: "de",
+  gb: "en",
+};
+
 function getAuthHeader() {
   const login = process.env.DATAFORSEO_LOGIN;
   const password = process.env.DATAFORSEO_PASSWORD;
@@ -18,12 +27,12 @@ function getAuthHeader() {
   return `Basic ${Buffer.from(`${login}:${password}`).toString("base64")}`;
 }
 
-function buildTaskPayload({ keyword, domain, country, device, language }: RankCheckParams) {
+function buildTaskPayload({ keyword, domain, country, device }: RankCheckParams) {
   return [
     {
       keyword,
       location_code: COUNTRY_LOCATION_CODES[country] ?? COUNTRY_LOCATION_CODES.de,
-      language_code: language ?? "de",
+      language_code: COUNTRY_LANGUAGE_CODES[country] ?? COUNTRY_LANGUAGE_CODES.de,
       device,
       target: domain,
     },
@@ -81,14 +90,14 @@ interface DataForSeoTaskGetResponse {
 export const dataForSeoProvider: RankProvider = {
   name: "dataforseo",
 
-  async submit({ keyword, domain, country, device, language }: RankCheckParams) {
+  async submit({ keyword, domain, country, device }: RankCheckParams) {
     const auth = getAuthHeader();
     if (!auth) throw new Error("DataForSEO credentials are not configured (DATAFORSEO_LOGIN/PASSWORD)");
 
     const res = await fetch(`${DATAFORSEO_BASE}/serp/google/organic/task_post`, {
       method: "POST",
       headers: { Authorization: auth, "Content-Type": "application/json" },
-      body: JSON.stringify(buildTaskPayload({ keyword, domain, country, device, language })),
+      body: JSON.stringify(buildTaskPayload({ keyword, domain, country, device })),
     });
 
     const data = (await res.json()) as DataForSeoTaskPostResponse;
@@ -135,14 +144,14 @@ export const dataForSeoProvider: RankProvider = {
   // Used for on-demand "run check now" checks: DataForSEO's live endpoint resolves
   // synchronously in the same request instead of requiring a task_post + poll round trip,
   // so a manual check never sits in "pending" waiting for the next cron tick.
-  async checkNow({ keyword, domain, country, device, language }: RankCheckParams): Promise<RankCheckResult> {
+  async checkNow({ keyword, domain, country, device }: RankCheckParams): Promise<RankCheckResult> {
     const auth = getAuthHeader();
     if (!auth) throw new Error("DataForSEO credentials are not configured (DATAFORSEO_LOGIN/PASSWORD)");
 
     const res = await fetch(`${DATAFORSEO_BASE}/serp/google/organic/live/advanced`, {
       method: "POST",
       headers: { Authorization: auth, "Content-Type": "application/json" },
-      body: JSON.stringify(buildTaskPayload({ keyword, domain, country, device, language })),
+      body: JSON.stringify(buildTaskPayload({ keyword, domain, country, device })),
     });
 
     if (!res.ok) {

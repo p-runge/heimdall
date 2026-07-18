@@ -3,7 +3,6 @@ export interface RankCheckParams {
   domain: string;
   country: string;
   device: "desktop" | "mobile";
-  language?: string;
 }
 
 export interface RankCheckResult {
