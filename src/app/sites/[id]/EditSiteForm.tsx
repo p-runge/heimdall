@@ -18,10 +18,16 @@ export function EditSiteForm({
   action: (formData: FormData) => Promise<void>;
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   async function handleSubmit(formData: FormData) {
-    await action(formData);
-    setIsEditing(false);
+    setIsSaving(true);
+    try {
+      await action(formData);
+      setIsEditing(false);
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   if (!isEditing) {
@@ -72,8 +78,15 @@ export function EditSiteForm({
         <TextInput name="prodBranch" placeholder="main" defaultValue={site.prodBranch ?? ""} />
       </Field>
       <div className="flex gap-2">
-        <Button type="submit">Save</Button>
-        <Button type="button" variant="ghost" onClick={() => setIsEditing(false)}>
+        <Button type="submit" disabled={isSaving}>
+          {isSaving ? "Saving…" : "Save"}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => setIsEditing(false)}
+          disabled={isSaving}
+        >
           Cancel
         </Button>
       </div>

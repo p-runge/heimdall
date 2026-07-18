@@ -4,7 +4,8 @@ import { db } from "@/db";
 import { alerts } from "@/db/schema";
 import { acknowledgeAlert, resolveAlertManually } from "@/lib/actions";
 import { isIntegrationConfigured } from "@/lib/integrations";
-import { Badge, Button, Callout, Panel } from "@/components/ui";
+import { Badge, Callout, Panel } from "@/components/ui";
+import { SubmitButton } from "@/components/submit-button";
 
 const TYPE_LABELS: Record<string, string> = {
   site_down: "Site down",
@@ -76,15 +77,15 @@ export default async function AlertsPage() {
                 <div className="flex shrink-0 gap-2">
                   {alert.status === "open" && (
                     <form action={acknowledgeWithId}>
-                      <Button variant="ghost" type="submit">
+                      <SubmitButton variant="ghost" pendingText="Acknowledging…">
                         Acknowledge
-                      </Button>
+                      </SubmitButton>
                     </form>
                   )}
                   <form action={resolveWithId}>
-                    <Button variant="ghost" type="submit">
+                    <SubmitButton variant="ghost" pendingText="Resolving…">
                       Resolve
-                    </Button>
+                    </SubmitButton>
                   </form>
                 </div>
               </div>

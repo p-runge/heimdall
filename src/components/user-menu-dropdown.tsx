@@ -1,6 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useFormStatus } from "react-dom";
+
+function SignOutButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      role="menuitem"
+      disabled={pending}
+      className="mt-1 w-full rounded-md px-2.5 py-2 text-left text-sm text-mist-300 transition-colors hover:bg-void hover:text-mist-100 disabled:opacity-50 disabled:pointer-events-none"
+    >
+      {pending ? "Signing out…" : "Sign out"}
+    </button>
+  );
+}
 
 function initials(name: string | null, email: string | null) {
   const source = (name ?? email ?? "").trim();
@@ -63,13 +78,7 @@ export function UserMenuDropdown({
             {email && <p className="truncate text-xs text-mist-500">{email}</p>}
           </div>
           <form action={onSignOut}>
-            <button
-              type="submit"
-              role="menuitem"
-              className="mt-1 w-full rounded-md px-2.5 py-2 text-left text-sm text-mist-300 transition-colors hover:bg-void hover:text-mist-100"
-            >
-              Sign out
-            </button>
+            <SignOutButton />
           </form>
         </div>
       )}

@@ -14,7 +14,8 @@ import {
 } from "@/lib/actions";
 import { isIntegrationConfigured } from "@/lib/integrations";
 import { describeCronInterval, getNextRun } from "@/lib/cronSchedule";
-import { Badge, Button, Callout, Field, Panel, TextInput } from "@/components/ui";
+import { Badge, Callout, Field, Panel, TextInput } from "@/components/ui";
+import { SubmitButton } from "@/components/submit-button";
 import { RankCheckButton } from "./RankCheckButton";
 import { EditSiteForm } from "./EditSiteForm";
 
@@ -89,9 +90,9 @@ export default async function SiteDetailPage({
           <EditSiteForm site={site} action={updateSiteWithId} />
         </div>
         <form action={deleteSiteWithIds}>
-          <Button variant="danger" type="submit">
+          <SubmitButton variant="danger" pendingText="Deleting…">
             Delete site
-          </Button>
+          </SubmitButton>
         </form>
       </div>
 
@@ -293,9 +294,12 @@ export default async function SiteDetailPage({
           <div className="flex shrink-0 items-center gap-2">
             <RankCheckButton action={runRankCheckNowWithIds} disabled={!dataforseoConfigured} />
             <form action={setSeoWatcherWithIds}>
-              <Button variant={site.seoWatcherEnabled ? "danger" : "primary"} type="submit">
+              <SubmitButton
+                variant={site.seoWatcherEnabled ? "danger" : "primary"}
+                pendingText="Saving…"
+              >
                 {site.seoWatcherEnabled ? "Turn off" : "Turn on"}
-              </Button>
+              </SubmitButton>
             </form>
           </div>
         </Panel>
@@ -359,9 +363,13 @@ export default async function SiteDetailPage({
                       {label}
                     </Badge>
                     <form action={deleteKeywordWithIds}>
-                      <Button variant="ghost" type="submit" className="px-2 py-1 text-xs">
+                      <SubmitButton
+                        variant="ghost"
+                        className="px-2 py-1 text-xs"
+                        pendingText="Removing…"
+                      >
                         remove
-                      </Button>
+                      </SubmitButton>
                     </form>
                   </div>
                 </Panel>
@@ -392,7 +400,7 @@ export default async function SiteDetailPage({
                 </select>
               </Field>
             </div>
-            <Button type="submit">Add keyword</Button>
+            <SubmitButton pendingText="Adding…">Add keyword</SubmitButton>
           </form>
         </Panel>
       </div>

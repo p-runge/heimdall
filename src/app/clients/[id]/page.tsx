@@ -4,7 +4,8 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { clients } from "@/db/schema";
 import { createSite, deleteClient, updateClient } from "@/lib/actions";
-import { Badge, Button, Field, Panel, TextInput } from "@/components/ui";
+import { Badge, Field, Panel, TextInput } from "@/components/ui";
+import { SubmitButton } from "@/components/submit-button";
 import { EditClientForm } from "./EditClientForm";
 
 export default async function ClientDetailPage({
@@ -33,9 +34,9 @@ export default async function ClientDetailPage({
           <EditClientForm client={client} action={updateClientWithId} />
         </div>
         <form action={deleteClientWithId}>
-          <Button variant="danger" type="submit">
+          <SubmitButton variant="danger" pendingText="Deleting…">
             Delete client
-          </Button>
+          </SubmitButton>
         </form>
       </div>
 
@@ -102,7 +103,7 @@ export default async function ClientDetailPage({
             <Field label="Production branch">
               <TextInput name="prodBranch" placeholder="main" />
             </Field>
-            <Button type="submit">Add site</Button>
+            <SubmitButton pendingText="Adding…">Add site</SubmitButton>
           </form>
         </Panel>
       </div>

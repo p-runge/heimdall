@@ -3,7 +3,8 @@ import { desc } from "drizzle-orm";
 import { db } from "@/db";
 import { clients } from "@/db/schema";
 import { createClient } from "@/lib/actions";
-import { Button, Field, Panel, TextInput } from "@/components/ui";
+import { Field, Panel, TextInput } from "@/components/ui";
+import { SubmitButton } from "@/components/submit-button";
 
 export default async function ClientsPage() {
   const allClients = await db.query.clients.findMany({
@@ -60,7 +61,7 @@ export default async function ClientsPage() {
             <Field label="Notes">
               <TextInput name="notes" placeholder="Optional" />
             </Field>
-            <Button type="submit">Add client</Button>
+            <SubmitButton pendingText="Adding…">Add client</SubmitButton>
           </form>
         </Panel>
       </div>
