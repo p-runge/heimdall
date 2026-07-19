@@ -17,6 +17,4 @@ export interface RankProvider {
   submit(params: RankCheckParams): Promise<{ taskId: string }>;
   /** Polls a submitted task. Returns null while the task is still processing. */
   poll(taskId: string): Promise<RankCheckResult | null>;
-  /** Runs a check synchronously and returns the resolved result in the same call. */
-  checkNow(params: RankCheckParams): Promise<RankCheckResult>;
 }

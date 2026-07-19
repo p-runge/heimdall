@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, ne, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { keywords, rankCheckRuns, type sites } from "@/db/schema";
 import { dataForSeoProvider } from "@/providers/dataforseo";
@@ -15,67 +15,45 @@ function domainOf(url: string) {
   }
 }
 
-export interface RankCheckNowSummary {
-  checked: number;
+export interface RankSubmitSummary {
+  submitted: number;
+  skipped: number;
   failed: { keyword: string; error: string }[];
 }
 
-// Used by the "run check now" button: resolves every active keyword synchronously via
-// the provider's live endpoint and writes a completed run row directly, so the UI never
-// has to show a stale "pending" state waiting on the async submit+poll cron cycle.
-export async function runRankCheckNowForSite(
+export async function submitRankChecksForSite(
   site: typeof sites.$inferSelect,
-): Promise<RankCheckNowSummary> {
+): Promise<RankSubmitSummary> {
   const siteKeywords = await db.query.keywords.findMany({
     where: and(eq(keywords.siteId, site.id), eq(keywords.isActive, true)),
   });
 
   const domain = domainOf(site.primaryUrl);
-  const summary: RankCheckNowSummary = { checked: 0, failed: [] };
+  const summary: RankSubmitSummary = { submitted: 0, skipped: 0, failed: [] };
+  if (siteKeywords.length === 0) return summary;
+
+  // Keywords with a submit+poll task still in flight are skipped so a repeated
+  // "run check now" click (or an overlap with the daily cron) doesn't pay for
+  // duplicate provider tasks.
+  const pendingRuns = await db
+    .select({ keywordId: rankCheckRuns.keywordId })
+    .from(rankCheckRuns)
+    .where(
+      and(
+        inArray(
+          rankCheckRuns.keywordId,
+          siteKeywords.map((k) => k.id),
+        ),
+        sql`${rankCheckRuns.serpFeatures} ->> 'pending' = 'true'`,
+      ),
+    );
+  const pendingKeywordIds = new Set(pendingRuns.map((r) => r.keywordId));
 
   for (const keyword of siteKeywords) {
-    try {
-      const result = await provider.checkNow({
-        keyword: keyword.phrase,
-        domain,
-        country: keyword.country,
-        device: keyword.device,
-      });
-
-      const [run] = await db
-        .insert(rankCheckRuns)
-        .values({
-          keywordId: keyword.id,
-          provider: provider.name,
-          position: result.position,
-          rankedUrl: result.rankedUrl,
-          serpFeatures: result.serpFeatures ?? {},
-        })
-        .returning();
-
-      summary.checked += 1;
-      await evaluateRankAlert({ ...keyword, site }, run.id, result.position);
-    } catch (err) {
-      console.error(`rank check-now failed for keyword ${keyword.id}:`, err);
-      summary.failed.push({
-        keyword: keyword.phrase,
-        error: err instanceof Error ? err.message : "unknown error",
-      });
+    if (pendingKeywordIds.has(keyword.id)) {
+      summary.skipped += 1;
+      continue;
     }
-  }
-
-  return summary;
-}
-
-export async function submitRankChecksForSite(site: typeof sites.$inferSelect) {
-  const siteKeywords = await db.query.keywords.findMany({
-    where: and(eq(keywords.siteId, site.id), eq(keywords.isActive, true)),
-  });
-
-  const domain = domainOf(site.primaryUrl);
-  let submitted = 0;
-
-  for (const keyword of siteKeywords) {
     try {
       const { taskId } = await provider.submit({
         keyword: keyword.phrase,
@@ -92,13 +70,17 @@ export async function submitRankChecksForSite(site: typeof sites.$inferSelect) {
         rankedUrl: null,
         serpFeatures: { taskId, pending: true },
       });
-      submitted += 1;
+      summary.submitted += 1;
     } catch (err) {
       console.error(`rank submit failed for keyword ${keyword.id}:`, err);
+      summary.failed.push({
+        keyword: keyword.phrase,
+        error: err instanceof Error ? err.message : "unknown error",
+      });
     }
   }
 
-  return submitted;
+  return summary;
 }
 
 export async function pollPendingRankChecks() {

@@ -3,7 +3,7 @@ import pLimit from "p-limit";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { sites } from "@/db/schema";
-import { submitRankChecksForSite } from "@/checks/rank";
+import { submitRankChecksForSite, type RankSubmitSummary } from "@/checks/rank";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -29,8 +29,8 @@ export async function GET(request: Request) {
   );
 
   const submitted = results
-    .filter((r): r is PromiseFulfilledResult<number> => r.status === "fulfilled")
-    .reduce((sum, r) => sum + r.value, 0);
+    .filter((r): r is PromiseFulfilledResult<RankSubmitSummary> => r.status === "fulfilled")
+    .reduce((sum, r) => sum + r.value.submitted, 0);
   const failed = results.filter((r) => r.status === "rejected");
 
   return NextResponse.json({

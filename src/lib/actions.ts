@@ -6,7 +6,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { alerts, clients, keywords, sites } from "@/db/schema";
 import { runHealthCheck } from "@/checks/health";
-import { runRankCheckNowForSite } from "@/checks/rank";
+import { submitRankChecksForSite } from "@/checks/rank";
 
 function requireString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -174,23 +174,28 @@ export async function runRankCheckNow(
   const site = await db.query.sites.findFirst({ where: eq(sites.id, siteId) });
   if (!site) throw new Error("site not found");
 
-  const summary = await runRankCheckNowForSite(site);
+  const summary = await submitRankChecksForSite(site);
   revalidatePath(`/sites/${siteId}`);
 
-  if (summary.checked === 0 && summary.failed.length === 0) {
+  if (summary.submitted === 0 && summary.skipped === 0 && summary.failed.length === 0) {
     return { status: "success", message: "No active keywords to check." };
   }
   if (summary.failed.length > 0) {
     return {
       status: "error",
-      message: `Checked ${summary.checked} keyword(s), ${summary.failed.length} failed: ${summary.failed
+      message: `Submitted ${summary.submitted} keyword check(s), ${summary.failed.length} failed: ${summary.failed
         .map((f) => `"${f.keyword}" (${f.error})`)
         .join(", ")}`,
     };
   }
+  if (summary.submitted === 0) {
+    return { status: "success", message: "Checks already in progress." };
+  }
   return {
     status: "success",
-    message: `Checked ${summary.checked} keyword${summary.checked === 1 ? "" : "s"}.`,
+    message: `Submitted ${summary.submitted} keyword check${summary.submitted === 1 ? "" : "s"}${
+      summary.skipped > 0 ? ` (${summary.skipped} already in progress)` : ""
+    } — results appear within ~10 minutes.`,
   };
 }
 

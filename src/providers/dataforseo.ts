@@ -140,40 +140,4 @@ export const dataForSeoProvider: RankProvider = {
     const { position, rankedUrl } = extractRanking(task.data?.target, result.items);
     return { position, rankedUrl, serpFeatures: { seResultsCount: result.se_results_count } };
   },
-
-  // Used for on-demand "run check now" checks: DataForSEO's live endpoint resolves
-  // synchronously in the same request instead of requiring a task_post + poll round trip,
-  // so a manual check never sits in "pending" waiting for the next cron tick.
-  async checkNow({ keyword, domain, country, device }: RankCheckParams): Promise<RankCheckResult> {
-    const auth = getAuthHeader();
-    if (!auth) throw new Error("DataForSEO credentials are not configured (DATAFORSEO_LOGIN/PASSWORD)");
-
-    const res = await fetch(`${DATAFORSEO_BASE}/serp/google/organic/live/advanced`, {
-      method: "POST",
-      headers: { Authorization: auth, "Content-Type": "application/json" },
-      body: JSON.stringify(buildTaskPayload({ keyword, domain, country, device })),
-    });
-
-    if (!res.ok) {
-      throw new Error(`DataForSEO live request failed: ${res.status} ${res.statusText}`);
-    }
-
-    const data = (await res.json()) as DataForSeoTaskGetResponse;
-    const task = data.tasks?.[0];
-
-    // A zero-result SERP is a resolved "not ranking" outcome, not an API failure.
-    if (task?.status_code === NO_SEARCH_RESULTS_STATUS_CODE) {
-      return { position: null, rankedUrl: null };
-    }
-
-    if (!task || task.status_code !== 20000) {
-      throw new Error(`DataForSEO live check failed: ${task?.status_message ?? "unknown error"}`);
-    }
-
-    const result = task.result?.[0];
-    if (!result) return { position: null, rankedUrl: null };
-
-    const { position, rankedUrl } = extractRanking(domain, result.items);
-    return { position, rankedUrl, serpFeatures: { seResultsCount: result.se_results_count } };
-  },
 };

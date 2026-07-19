@@ -26,13 +26,13 @@ import { isIntegrationConfigured } from "@/lib/integrations";
 import { describeCronInterval, getNextRun } from "@/lib/cronSchedule";
 import { Badge, Callout, Field, Panel, TextInput } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
-import { RankCheckButton } from "./RankCheckButton";
+import { SeoWatcherControls } from "./SeoWatcherControls";
 import { EditSiteForm } from "./EditSiteForm";
 import { RankHistoryChart } from "./RankHistoryChart";
 import { KeywordList, type KeywordListItem } from "./KeywordList";
 
-// DataForSEO's live endpoint (used by "run check now") can take longer than the
-// platform's default Server Action timeout to resolve, especially with several keywords.
+// "Check once" submits one DataForSEO task per keyword sequentially, which can take
+// longer than the platform's default Server Action timeout with several keywords.
 export const maxDuration = 60;
 
 function daysSince(date: Date) {
@@ -353,48 +353,40 @@ export default async function SiteDetailPage({
       </div>
 
       <div className="mt-8">
-        <Panel className="flex items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-display text-sm tracking-wide text-mist-300">SEO watcher</h2>
-              <Badge tone={site.seoWatcherEnabled ? "aurora" : "neutral"}>
-                {site.seoWatcherEnabled ? "watching" : "paused"}
-              </Badge>
+        <Panel>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="font-display text-lg tracking-wide text-mist-100">SEO</h2>
+                <Badge tone={site.seoWatcherEnabled ? "aurora" : "neutral"}>
+                  {site.seoWatcherEnabled ? "watching" : "paused"}
+                </Badge>
+              </div>
+              <div className="mt-2 text-sm text-mist-400">
+                {site.seoWatcherEnabled ? (
+                  <>
+                    Automatic rank checks run{" "}
+                    {rankSubmitInterval ?? "on schedule"}
+                    {nextRankCheck && (
+                      <> &middot; next check {nextRankCheck.toLocaleString()}</>
+                    )}
+                    .
+                  </>
+                ) : (
+                  "Automatic rank checks are off — DataForSEO calls cost money per keyword, so this stays opt-in per site."
+                )}
+              </div>
             </div>
-            <div className="mt-2 text-sm text-mist-400">
-              {site.seoWatcherEnabled ? (
-                <>
-                  Automatic rank checks run{" "}
-                  {rankSubmitInterval ?? "on schedule"}
-                  {nextRankCheck && (
-                    <> &middot; next check {nextRankCheck.toLocaleString()}</>
-                  )}
-                  .
-                </>
-              ) : (
-                "Automatic rank checks are off — DataForSEO calls cost money per keyword, so this stays opt-in per site."
-              )}
-            </div>
+            <SeoWatcherControls
+              checkAction={runRankCheckNowWithIds}
+              toggleAction={setSeoWatcherWithIds}
+              watcherEnabled={site.seoWatcherEnabled}
+              checkDisabled={!dataforseoConfigured}
+            />
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <RankCheckButton action={runRankCheckNowWithIds} disabled={!dataforseoConfigured} />
-            <form action={setSeoWatcherWithIds}>
-              <SubmitButton
-                variant={site.seoWatcherEnabled ? "danger" : "primary"}
-                pendingText="Saving…"
-              >
-                {site.seoWatcherEnabled ? "Turn off" : "Turn on"}
-              </SubmitButton>
-            </form>
-          </div>
-        </Panel>
-      </div>
 
-      <div className="mt-4 grid gap-8 md:grid-cols-[2fr_1fr]">
-        <div>
-          <h2 className="font-display text-lg tracking-wide text-mist-100">Keywords</h2>
           {!dataforseoConfigured && (
-            <div className="mt-3">
+            <div className="mt-4">
               <Callout>
                 SEO rank tracking isn&apos;t connected — keywords can be added, but positions won&apos;t
                 update until it is.{" "}
@@ -405,65 +397,67 @@ export default async function SiteDetailPage({
               </Callout>
             </div>
           )}
-          {site.keywords.length === 0 ? (
-            <div className="mt-3">
-              <Panel className="text-mist-500">No keywords tracked yet.</Panel>
-            </div>
-          ) : (
-            <KeywordList
-              siteId={site.id}
-              keywords={keywordItems}
-              reorderAction={reorderKeywords}
-            />
-          )}
-        </div>
 
-        <Panel>
-          <h2 className="font-display text-lg tracking-wide text-mist-100">Track keyword</h2>
-          <form action={createKeyword} className="mt-4 flex flex-col gap-4">
-            <input type="hidden" name="siteId" value={site.id} />
-            <Field label="Phrase">
-              <TextInput name="phrase" required placeholder="best coffee berlin" />
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Country">
-                <TextInput name="country" defaultValue="de" placeholder="de" />
-              </Field>
-              <Field label="Device">
-                <select
-                  name="device"
-                  defaultValue="desktop"
-                  className="rounded-md border border-mist-700 bg-void px-3 py-2 text-sm text-mist-100 outline-none focus:border-aurora-violet"
-                >
-                  <option value="desktop">Desktop</option>
-                  <option value="mobile">Mobile</option>
-                </select>
-              </Field>
+          <div className="mt-6 grid gap-8 border-t border-mist-800/70 pt-6 md:grid-cols-[2fr_1fr]">
+            <div>
+              <h3 className="font-display text-sm tracking-wide text-mist-300">Keywords</h3>
+              {site.keywords.length === 0 ? (
+                <p className="mt-3 text-sm text-mist-500">No keywords tracked yet.</p>
+              ) : (
+                <KeywordList
+                  siteId={site.id}
+                  keywords={keywordItems}
+                  reorderAction={reorderKeywords}
+                />
+              )}
             </div>
-            <SubmitButton pendingText="Adding…">Add keyword</SubmitButton>
-          </form>
+
+            <div>
+              <h3 className="font-display text-sm tracking-wide text-mist-300">Track keyword</h3>
+              <form action={createKeyword} className="mt-4 flex flex-col gap-4">
+                <input type="hidden" name="siteId" value={site.id} />
+                <Field label="Phrase">
+                  <TextInput name="phrase" required placeholder="best coffee berlin" />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Country">
+                    <TextInput name="country" defaultValue="de" placeholder="de" />
+                  </Field>
+                  <Field label="Device">
+                    <select
+                      name="device"
+                      defaultValue="desktop"
+                      className="rounded-md border border-mist-700 bg-void px-3 py-2 text-sm text-mist-100 outline-none focus:border-aurora-violet"
+                    >
+                      <option value="desktop">Desktop</option>
+                      <option value="mobile">Mobile</option>
+                    </select>
+                  </Field>
+                </div>
+                <SubmitButton pendingText="Adding…">Add keyword</SubmitButton>
+              </form>
+            </div>
+          </div>
+
+          {site.keywords.length > 0 && (
+            <div className="mt-6 border-t border-mist-800/70 pt-6">
+              <h3 className="font-display text-sm tracking-wide text-mist-300">Rank history</h3>
+              <p className="mt-1 text-xs text-mist-500">Last {RANK_HISTORY_DAYS} days</p>
+              {hasAnyRankHistory ? (
+                <div className="mt-4">
+                  <RankHistoryChart keywords={rankHistory} />
+                </div>
+              ) : (
+                <div className="mt-4">
+                  <Callout>
+                    No rank history yet — checks will appear here once your SEO watcher runs.
+                  </Callout>
+                </div>
+              )}
+            </div>
+          )}
         </Panel>
       </div>
-
-      {site.keywords.length > 0 && (
-        <div className="mt-8">
-          <Panel>
-            <h2 className="font-display text-lg tracking-wide text-mist-100">Rank history</h2>
-            <p className="mt-1 text-xs text-mist-500">Last {RANK_HISTORY_DAYS} days</p>
-            {hasAnyRankHistory ? (
-              <div className="mt-4">
-                <RankHistoryChart keywords={rankHistory} />
-              </div>
-            ) : (
-              <div className="mt-4">
-                <Callout>
-                  No rank history yet — checks will appear here once your SEO watcher runs.
-                </Callout>
-              </div>
-            )}
-          </Panel>
-        </div>
-      )}
     </div>
   );
 }
