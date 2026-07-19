@@ -1,5 +1,5 @@
 {
-  "buildCommand": "[ \"$VERCEL_ENV\" = \"production\" ] && pnpm db:migrate:prod; pnpm build",
+  "buildCommand": "bash scripts/deploy/migrate-if-production.sh && pnpm build",
   "crons": [
     { "path": "/api/cron/health", "schedule": "* * * * *" },
     { "path": "/api/cron/drift", "schedule": "*/30 * * * *" },
