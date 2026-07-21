@@ -28,7 +28,6 @@ export async function submitRankChecksForSite(
     where: and(eq(keywords.siteId, site.id), eq(keywords.isActive, true)),
   });
 
-  const domain = domainOf(site.primaryUrl);
   const summary: RankSubmitSummary = { submitted: 0, skipped: 0, failed: [] };
   if (siteKeywords.length === 0) return summary;
 
@@ -57,7 +56,6 @@ export async function submitRankChecksForSite(
     try {
       const { taskId } = await provider.submit({
         keyword: keyword.phrase,
-        domain,
         country: keyword.country,
         device: keyword.device,
       });
@@ -96,7 +94,8 @@ export async function pollPendingRankChecks() {
     if (!taskId) continue;
 
     try {
-      const result = await provider.poll(taskId);
+      const targetDomain = domainOf(run.keyword.site.primaryUrl);
+      const result = await provider.poll(taskId, targetDomain);
       if (!result) continue; // still processing, try again next tick
 
       await db

@@ -1,6 +1,5 @@
 export interface RankCheckParams {
   keyword: string;
-  domain: string;
   country: string;
   device: "desktop" | "mobile";
 }
@@ -15,6 +14,6 @@ export interface RankProvider {
   name: "dataforseo" | "gsc";
   /** Submits a rank-check task; returns a provider-specific task id to poll later. */
   submit(params: RankCheckParams): Promise<{ taskId: string }>;
-  /** Polls a submitted task. Returns null while the task is still processing. */
-  poll(taskId: string): Promise<RankCheckResult | null>;
+  /** Polls a submitted task, matching results against targetDomain. Returns null while still processing. */
+  poll(taskId: string, targetDomain: string): Promise<RankCheckResult | null>;
 }

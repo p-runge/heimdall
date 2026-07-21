@@ -27,14 +27,13 @@ function getAuthHeader() {
   return `Basic ${Buffer.from(`${login}:${password}`).toString("base64")}`;
 }
 
-function buildTaskPayload({ keyword, domain, country, device }: RankCheckParams) {
+function buildTaskPayload({ keyword, country, device }: RankCheckParams) {
   return [
     {
       keyword,
       location_code: COUNTRY_LOCATION_CODES[country] ?? COUNTRY_LOCATION_CODES.de,
       language_code: COUNTRY_LANGUAGE_CODES[country] ?? COUNTRY_LANGUAGE_CODES.de,
       device,
-      target: domain,
     },
   ];
 }
@@ -79,7 +78,6 @@ interface DataForSeoTaskGetResponse {
   tasks?: {
     status_code?: number;
     status_message?: string;
-    data?: { target?: string };
     result?: {
       se_results_count?: number;
       items?: { type?: string; domain?: string; url?: string; rank_absolute?: number }[];
@@ -90,14 +88,14 @@ interface DataForSeoTaskGetResponse {
 export const dataForSeoProvider: RankProvider = {
   name: "dataforseo",
 
-  async submit({ keyword, domain, country, device }: RankCheckParams) {
+  async submit({ keyword, country, device }: RankCheckParams) {
     const auth = getAuthHeader();
     if (!auth) throw new Error("DataForSEO credentials are not configured (DATAFORSEO_LOGIN/PASSWORD)");
 
     const res = await fetch(`${DATAFORSEO_BASE}/serp/google/organic/task_post`, {
       method: "POST",
       headers: { Authorization: auth, "Content-Type": "application/json" },
-      body: JSON.stringify(buildTaskPayload({ keyword, domain, country, device })),
+      body: JSON.stringify(buildTaskPayload({ keyword, country, device })),
     });
 
     const data = (await res.json()) as DataForSeoTaskPostResponse;
@@ -115,7 +113,7 @@ export const dataForSeoProvider: RankProvider = {
     return { taskId };
   },
 
-  async poll(taskId: string): Promise<RankCheckResult | null> {
+  async poll(taskId: string, targetDomain: string): Promise<RankCheckResult | null> {
     const auth = getAuthHeader();
     if (!auth) throw new Error("DataForSEO credentials are not configured (DATAFORSEO_LOGIN/PASSWORD)");
 
@@ -137,7 +135,7 @@ export const dataForSeoProvider: RankProvider = {
     const result = task.result?.[0];
     if (!result) return { position: null, rankedUrl: null };
 
-    const { position, rankedUrl } = extractRanking(task.data?.target, result.items);
+    const { position, rankedUrl } = extractRanking(targetDomain, result.items);
     return { position, rankedUrl, serpFeatures: { seResultsCount: result.se_results_count } };
   },
 };
