@@ -1,16 +1,68 @@
 import * as cheerio from "cheerio";
 import { fetchHtml } from "@/lib/fetch-html";
 
-export const MAX_SITEMAP_URLS = 5000;
+// This is a safety ceiling, not a meaningful traffic control — grouping
+// collapses large sections down to a handful of patterns regardless of how
+// many raw URLs went in, and MAX_PATTERNS_PER_SITE is what actually bounds
+// health-check volume. Keep this high enough that one large section (e.g.
+// thousands of product pages in one locale) can never crowd out an entirely
+// unrelated section (e.g. a second locale) before discovery even reaches it.
+// Discovery runs once daily, off the every-minute hot path, so the extra
+// parsing work here is cheap.
+export const MAX_SITEMAP_URLS = 50_000;
 export const MAX_CHILD_SITEMAPS = 20;
 
-const SIBLING_COLLAPSE_THRESHOLD = 4;
+const SIBLING_COLLAPSE_THRESHOLD = 10;
 const NUMERIC_SEGMENT = /^\d+$/;
 const UUID_SEGMENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NON_PAGE_EXTENSION = /\.(pdf|jpe?g|png|gif|svg|webp|zip|xml|json|css|js|ico|mp4|mp3)$/i;
 
 function isIdLikeSegment(segment: string) {
   return NUMERIC_SEGMENT.test(segment) || UUID_SEGMENT.test(segment);
+}
+
+/** One piece of content and every locale it's declared available in — the
+ *  canonical <loc> plus its hreflang alternates (excluding "x-default", a
+ *  locale-less redirect entry point, not a distinct page). */
+function collectUrlGroups($: cheerio.CheerioAPI): string[][] {
+  const groups: string[][] = [];
+  $("url").each((_, urlEl) => {
+    const loc = $(urlEl).find("> loc").first().text().trim();
+    if (!loc) return;
+    const members = new Set([loc]);
+    $(urlEl)
+      .find("> xhtml\\:link[rel=alternate]:not([hreflang=x-default])")
+      .each((_, linkEl) => {
+        const href = $(linkEl).attr("href");
+        if (href) members.add(href.trim());
+      });
+    groups.push([...members]);
+  });
+  return groups;
+}
+
+/** Picks which URL(s) from a translation group to feed into pattern
+ *  grouping. A group where every member is a bare locale segment (e.g. "/de"
+ *  and "/en") is a set of genuinely distinct locale entry points — keep all
+ *  of them, since each is worth monitoring on its own. Anything deeper (e.g.
+ *  "/de/cards/2011bw-1" and its "/en/..." translation) is the same page
+ *  template rendered in different languages — a broken template shows up
+ *  regardless of locale, so keep just one representative (picked
+ *  deterministically so re-discovery doesn't churn the sampled URL). */
+function representativeUrls(group: string[], origin: string): string[] {
+  const valid = group.filter((url) => {
+    try {
+      return new URL(url).origin === origin && !NON_PAGE_EXTENSION.test(url);
+    } catch {
+      return false;
+    }
+  });
+  if (valid.length === 0) return [];
+
+  const isLocaleRootGroup = valid.every(
+    (url) => new URL(url).pathname.split("/").filter(Boolean).length <= 1,
+  );
+  return isLocaleRootGroup ? valid : [[...valid].sort()[0]];
 }
 
 async function findSitemapUrls(primaryUrl: string): Promise<string[]> {
@@ -33,8 +85,17 @@ export async function discoverSitemapUrls(primaryUrl: string): Promise<string[] 
   const origin = new URL(primaryUrl).origin;
   const candidates = await findSitemapUrls(primaryUrl);
 
-  const urls: string[] = [];
+  // Locale duplicates are resolved down to one representative as each group
+  // is parsed (see representativeUrls), so this cap bounds the actually
+  // useful working set, not raw pre-collapse sitemap volume.
+  const urls = new Set<string>();
   let foundAnySitemap = false;
+
+  const ingest = ($page: cheerio.CheerioAPI) => {
+    for (const group of collectUrlGroups($page)) {
+      for (const url of representativeUrls(group, origin)) urls.add(url);
+    }
+  };
 
   for (const sitemapUrl of candidates) {
     const result = await fetchHtml(sitemapUrl);
@@ -53,32 +114,19 @@ export async function discoverSitemapUrls(primaryUrl: string): Promise<string[] 
       for (const childUrl of childSitemaps) {
         const child = await fetchHtml(childUrl);
         if (!child.ok) continue;
-        const $child = cheerio.load(child.html, { xmlMode: true });
-        $child("url > loc").each((_, el) => {
-          urls.push($child(el).text().trim());
-        });
-        if (urls.length >= MAX_SITEMAP_URLS) break;
+        ingest(cheerio.load(child.html, { xmlMode: true }));
+        if (urls.size >= MAX_SITEMAP_URLS) break;
       }
     } else {
-      $("url > loc").each((_, el) => {
-        urls.push($(el).text().trim());
-      });
+      ingest($);
     }
 
-    if (urls.length >= MAX_SITEMAP_URLS) break;
+    if (urls.size >= MAX_SITEMAP_URLS) break;
   }
 
   if (!foundAnySitemap) return null;
 
-  const sameOrigin = urls.filter((url) => {
-    try {
-      return new URL(url).origin === origin && !NON_PAGE_EXTENSION.test(url);
-    } catch {
-      return false;
-    }
-  });
-
-  return [...new Set(sameOrigin)].slice(0, MAX_SITEMAP_URLS);
+  return [...urls].slice(0, MAX_SITEMAP_URLS);
 }
 
 /** Groups a flat URL list into representative page-type patterns: siblings
