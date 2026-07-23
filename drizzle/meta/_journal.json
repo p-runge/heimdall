@@ -36,6 +36,20 @@
       "when": 1784416170527,
       "tag": "0004_add_keyword_sort_order",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784723661704,
+      "tag": "0005_mixed_phalanx",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784727452550,
+      "tag": "0006_legal_wolfpack",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { alerts, healthCheckRuns, sites } from "@/db/schema";
+import { alerts, healthCheckRuns, sitePagePatterns, sites } from "@/db/schema";
 import { Badge } from "@/components/ui";
 
 type SiteStatus = "critical" | "warning" | "unknown" | "healthy";
@@ -36,12 +36,22 @@ export default async function Home() {
     with: {
       client: true,
       alerts: { where: eq(alerts.status, "open") },
+      // Pre-discovery fallback — see sitePagePatterns below for the
+      // post-discovery source of the root page's latest check.
       healthCheckRuns: { limit: 1, orderBy: desc(healthCheckRuns.checkedAt) },
+      sitePagePatterns: {
+        where: eq(sitePagePatterns.patternKey, "/"),
+        limit: 1,
+        with: { healthCheckRuns: { limit: 1, orderBy: desc(healthCheckRuns.checkedAt) } },
+      },
     },
   });
 
   const watchposts = activeSites
-    .map((site) => ({ site, status: siteStatus(site.alerts, site.healthCheckRuns[0]) }))
+    .map((site) => ({
+      site,
+      status: siteStatus(site.alerts, site.sitePagePatterns[0]?.healthCheckRuns[0] ?? site.healthCheckRuns[0]),
+    }))
     .sort(
       (a, b) =>
         STATUS_RANK[a.status] - STATUS_RANK[b.status] || a.site.name.localeCompare(b.site.name),

@@ -10,6 +10,7 @@ import {
   keywords,
   previewCheckRuns,
   rankCheckRuns,
+  sitePagePatterns,
   sites,
 } from "@/db/schema";
 import { runSiteChecks } from "@/checks/runAll";
@@ -67,7 +68,15 @@ function getSiteDetail(id: string) {
     where: eq(sites.id, id),
     with: {
       client: true,
+      // Doubles as: (a) input to runSiteChecks' once-per-minute throttle,
+      // which needs the true latest run regardless of pattern, and (b) the
+      // pre-discovery UI fallback below, where every run is pattern-less
+      // anyway so no filtering is needed.
       healthCheckRuns: { orderBy: desc(healthCheckRuns.checkedAt), limit: 1 },
+      sitePagePatterns: {
+        orderBy: asc(sitePagePatterns.patternKey),
+        with: { healthCheckRuns: { orderBy: desc(healthCheckRuns.checkedAt), limit: 1 } },
+      },
       complianceCheckRuns: { orderBy: desc(complianceCheckRuns.checkedAt), limit: 1 },
       previewCheckRuns: { orderBy: desc(previewCheckRuns.checkedAt), limit: 1 },
       driftCheckRuns: {
@@ -113,7 +122,9 @@ export default async function SiteDetailPage({
 
   const deleteSiteWithIds = deleteSite.bind(null, site.id, site.clientId);
   const updateSiteWithId = updateSite.bind(null, site.id);
-  const health = site.healthCheckRuns[0];
+  const rootPagePattern = site.sitePagePatterns.find((p) => p.patternKey === "/");
+  const health = rootPagePattern?.healthCheckRuns[0] ?? site.healthCheckRuns[0];
+  const subPagePatterns = site.sitePagePatterns.filter((p) => p.patternKey !== "/");
   const compliance = site.complianceCheckRuns[0];
   const preview = site.previewCheckRuns[0];
   const drift = site.driftCheckRuns[0];
@@ -237,6 +248,47 @@ export default async function SiteDetailPage({
           ) : (
             <p className="mt-2 text-mist-500">No checks yet.</p>
           )}
+          {subPagePatterns.length > 0 && (
+            <details className="mt-4 border-t border-mist-800 pt-3" open={subPagePatterns.length <= 5}>
+              <summary className="cursor-pointer text-xs text-mist-500 hover:text-mist-300">
+                {subPagePatterns.length} page type{subPagePatterns.length === 1 ? "" : "s"} checked
+              </summary>
+              <div className="mt-2 space-y-1.5">
+                {subPagePatterns.map((pattern) => {
+                  const patternHealth = pattern.healthCheckRuns[0];
+                  return (
+                    <div key={pattern.id} className="flex items-center gap-2 text-xs">
+                      {patternHealth ? (
+                        <Badge tone={patternHealth.isUp ? "aurora" : "crimson"}>
+                          {patternHealth.isUp ? "up" : "down"}
+                        </Badge>
+                      ) : (
+                        <Badge tone="neutral">pending</Badge>
+                      )}
+                      <span className="text-mist-300">{pattern.patternKey}</span>
+                      {pattern.urlCount > 1 && (
+                        <span className="text-mist-600">×{pattern.urlCount} pages</span>
+                      )}
+                      {patternHealth && (
+                        <span className="ml-auto text-mist-600">{patternHealth.responseTimeMs}ms</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
+          )}
+          {site.discoveredPatternCount != null &&
+            site.discoveredPatternCount > site.sitePagePatterns.length && (
+              <div className="mt-3">
+                <Callout tone="gold">
+                  Sitemap has {site.discoveredPatternCount} distinct page types, but only{" "}
+                  {site.sitePagePatterns.length} are being checked (limit reached). Raise{" "}
+                  <code className="text-xs">MAX_PATTERNS_PER_SITE</code> or simplify the site&apos;s
+                  sitemap structure.
+                </Callout>
+              </div>
+            )}
         </Panel>
 
         <Panel>

@@ -2,6 +2,7 @@
   "buildCommand": "bash scripts/deploy/migrate-if-production.sh && pnpm build",
   "crons": [
     { "path": "/api/cron/health", "schedule": "* * * * *" },
+    { "path": "/api/cron/discover-pages", "schedule": "0 5 * * *" },
     { "path": "/api/cron/drift", "schedule": "*/30 * * * *" },
     { "path": "/api/cron/compliance", "schedule": "0 4 * * *" },
     { "path": "/api/cron/preview", "schedule": "*/30 * * * *" },

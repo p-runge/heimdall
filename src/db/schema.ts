@@ -8,6 +8,7 @@ import {
   timestamp,
   jsonb,
   pgEnum,
+  unique,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -59,14 +60,44 @@ export const sites = pgTable("sites", {
   // Separate from isActive: DataForSEO rank checks cost money per keyword,
   // so automatic SEO watching is an explicit opt-in per site.
   seoWatcherEnabled: boolean("seo_watcher_enabled").notNull().default(false),
+  // Total distinct page-type patterns the last sitemap discovery found,
+  // before MAX_PATTERNS_PER_SITE truncation — lets the UI warn when patterns
+  // are being dropped, even though only the kept ones exist in
+  // sitePagePatterns. Null until the first discovery run.
+  discoveredPatternCount: integer("discovered_pattern_count"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+// One known page sub-type discovered from a site's sitemap (e.g. "/", "/about",
+// "/blog/*"). Populated by the daily discovery cron; the health check reads
+// this to know which sample URLs to ping instead of only the root page.
+export const sitePagePatterns = pgTable(
+  "site_page_patterns",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    siteId: uuid("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    patternKey: text("pattern_key").notNull(),
+    sampleUrl: text("sample_url").notNull(),
+    // Sitemap URLs that matched this pattern at last discovery; display-only.
+    urlCount: integer("url_count").notNull().default(1),
+    lastSeenAt: timestamp("last_seen_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [unique().on(table.siteId, table.patternKey)],
+);
 
 export const healthCheckRuns = pgTable("health_check_runs", {
   id: uuid("id").primaryKey().defaultRandom(),
   siteId: uuid("site_id")
     .notNull()
     .references(() => sites.id, { onDelete: "cascade" }),
+  // Null means either a pre-discovery fallback run (root only, no patterns
+  // known yet) or a legacy run predating this column.
+  sitePagePatternId: uuid("site_page_pattern_id").references(() => sitePagePatterns.id, {
+    onDelete: "set null",
+  }),
   checkedAt: timestamp("checked_at").notNull().defaultNow(),
   httpStatus: integer("http_status"),
   responseTimeMs: integer("response_time_ms"),
@@ -229,6 +260,7 @@ export const clientsRelations = relations(clients, ({ many }) => ({
 export const sitesRelations = relations(sites, ({ one, many }) => ({
   client: one(clients, { fields: [sites.clientId], references: [clients.id] }),
   healthCheckRuns: many(healthCheckRuns),
+  sitePagePatterns: many(sitePagePatterns),
   complianceCheckRuns: many(complianceCheckRuns),
   previewCheckRuns: many(previewCheckRuns),
   lighthouseRuns: many(lighthouseRuns),
@@ -237,8 +269,17 @@ export const sitesRelations = relations(sites, ({ one, many }) => ({
   alerts: many(alerts),
 }));
 
+export const sitePagePatternsRelations = relations(sitePagePatterns, ({ one, many }) => ({
+  site: one(sites, { fields: [sitePagePatterns.siteId], references: [sites.id] }),
+  healthCheckRuns: many(healthCheckRuns),
+}));
+
 export const healthCheckRunsRelations = relations(healthCheckRuns, ({ one }) => ({
   site: one(sites, { fields: [healthCheckRuns.siteId], references: [sites.id] }),
+  sitePagePattern: one(sitePagePatterns, {
+    fields: [healthCheckRuns.sitePagePatternId],
+    references: [sitePagePatterns.id],
+  }),
 }));
 
 export const complianceCheckRunsRelations = relations(complianceCheckRuns, ({ one }) => ({

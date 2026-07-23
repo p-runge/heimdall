@@ -1,0 +1,1 @@
+ALTER TABLE "sites" ADD COLUMN "discovered_pattern_count" integer;
