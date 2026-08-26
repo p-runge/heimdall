@@ -1,0 +1,15 @@
+# Keep the Docker build context small and free of secrets.
+node_modules
+.next
+.git
+.github
+.claude
+.vscode
+.vercel
+drizzle.config.ts
+docs
+**/.env
+**/.env.*
+!.env.example
+**/*.log
+tsconfig.tsbuildinfo
