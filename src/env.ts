@@ -18,4 +18,8 @@ export const env = createEnv({
   },
   client: {},
   experimental__runtimeEnv: {},
+  // The container image builds without a database or OAuth credentials. Runtime
+  // validation still runs: src/instrumentation.ts imports this module on server
+  // start, and SKIP_ENV_VALIDATION is set only in the Docker builder stage.
+  skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
