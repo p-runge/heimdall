@@ -1,5 +1,4 @@
 {
-  "buildCommand": "bash scripts/deploy/migrate-if-production.sh && pnpm build",
   "crons": [
     { "path": "/api/cron/health", "schedule": "* * * * *" },
     { "path": "/api/cron/discover-pages", "schedule": "0 5 * * *" },

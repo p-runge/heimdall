@@ -2,31 +2,31 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Cron } from "croner";
 
-interface VercelCronEntry {
+interface CronEntry {
   path: string;
   schedule: string;
 }
 
-interface VercelConfig {
-  crons?: VercelCronEntry[];
+interface CronConfig {
+  crons?: CronEntry[];
 }
 
 const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
 const CRON_SECRET = process.env.CRON_SECRET;
 const runNow = process.argv.includes("--now");
 
-const vercelConfigPath = join(process.cwd(), "vercel.json");
-const config = JSON.parse(readFileSync(vercelConfigPath, "utf-8")) as VercelConfig;
+const cronConfigPath = join(process.cwd(), "crons.json");
+const config = JSON.parse(readFileSync(cronConfigPath, "utf-8")) as CronConfig;
 const crons = config.crons ?? [];
 
 if (crons.length === 0) {
-  console.log("no cron entries found in vercel.json");
+  console.log("no cron entries found in crons.json");
   process.exit(0);
 }
 
 console.log(`Heimdall local cron runner — targeting ${APP_URL}`);
 
-async function trigger(entry: VercelCronEntry) {
+async function trigger(entry: CronEntry) {
   const startedAt = Date.now();
   try {
     const res = await fetch(`${APP_URL}${entry.path}`, {

@@ -93,9 +93,17 @@ magic variable so it is generated once and shared across services.
 standalone server. A failed migration must abort the start with a non-zero exit
 so a broken schema cannot serve traffic.
 
+**`.dockerignore`**: the repo has none. Without it the build context carries
+`node_modules` and every `.env*` file, so `.env.prod`, `.env.local` and
+`.env.coolify` would all be baked into an image layer. This has to land before
+anything builds.
+
 ### Modified files
 
 **`next.config.ts`**: add `output: "standalone"`.
+
+**`package.json`**: add `"packageManager": "pnpm@10.30.3"`. The field is missing,
+so `corepack enable` in the Dockerfile has no pinned version to resolve.
 
 **`src/env.ts`**: add a `skipValidation` escape hatch driven by an env var.
 `next.config.ts` imports the env schema, so `next build` currently aborts without
@@ -141,9 +149,17 @@ image build fails without a reachable database.
 
 Bulkratte solved the equivalent problem by building on the host network with the
 production database reachable. That is a lot of machinery for a dashboard that
-sits behind a login and gains nothing from static output. Verify during
-implementation whether the build touches the database; if it does, mark the
-affected segment dynamic rather than making the database a build dependency.
+sits behind a login and gains nothing from static output.
+
+**Resolved during implementation (2026-08-26):** the build reports every app route
+as `f (Dynamic)`; only `/icon.svg` and `/robots.txt` are static. Nothing is
+prerendered against the database and no route needs `force-dynamic`.
+
+The build does still need a `DATABASE_URL`, for a different reason.
+`src/db/index.ts` throws when the variable is missing and calls `postgres()` on
+it, both at module scope, and Next imports that module while collecting route
+data. A syntactically valid URL pointing nowhere is enough, since postgres-js
+connects lazily. The builder stage sets one alongside `SKIP_ENV_VALIDATION`.
 
 ## Coolify setup
 

@@ -2,21 +2,21 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Cron } from "croner";
 
-interface VercelCronEntry {
+interface CronEntry {
   path: string;
   schedule: string;
 }
 
-interface VercelConfig {
-  crons?: VercelCronEntry[];
+interface CronConfig {
+  crons?: CronEntry[];
 }
 
-let cachedEntries: VercelCronEntry[] | null = null;
+let cachedEntries: CronEntry[] | null = null;
 
-function loadCronEntries(): VercelCronEntry[] {
+function loadCronEntries(): CronEntry[] {
   if (cachedEntries) return cachedEntries;
-  const configPath = join(process.cwd(), "vercel.json");
-  const config = JSON.parse(readFileSync(configPath, "utf-8")) as VercelConfig;
+  const configPath = join(process.cwd(), "crons.json");
+  const config = JSON.parse(readFileSync(configPath, "utf-8")) as CronConfig;
   cachedEntries = config.crons ?? [];
   return cachedEntries;
 }
