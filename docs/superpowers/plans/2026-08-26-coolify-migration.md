@@ -907,11 +907,22 @@ repo and Coolify.
 ```bash
 curl -s -X PATCH -H "Authorization: Bearer $COOLIFY_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"docker_compose_domains":"{\"app\":{\"domain\":\"https://heimdall.progani.com\"}}"}' \
+  -d '{"docker_compose_domains":[{"name":"app","domain":"https://heimdall.progani.com"}]}' \
   "$COOLIFY_URL/api/v1/applications/$APP_UUID"
 ```
 
 Then redeploy so Traefik picks up the new router.
+
+**Learned the hard way on 2026-08-26.** Without a `docker_compose_domains` entry
+Traefik answers 404 for every path: on the `dockercompose` build pack it cannot
+know which of the three containers a domain belongs to, and the `fqdn` field
+Coolify fills in on creation does not tell it. The first deploy came up healthy
+and still served 404 until the mapping was added.
+
+The PATCH body takes an **array**, not the object shape that GET returns. Only
+`name`, `domain` and `redirect` are accepted per entry; anything else fails with
+"An item in the docker_compose_domains array has invalid fields", and passing the
+GET-shaped object fails with "The docker compose domains field must be an array".
 
 - [ ] **Step 3: Verify the real domain**
 
