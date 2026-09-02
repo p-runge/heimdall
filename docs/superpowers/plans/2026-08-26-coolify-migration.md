@@ -956,6 +956,11 @@ Do not start this until Task 8 passes. Every step destroys something.
   gone the data is unrecoverable, which is acceptable only because the migration
   deliberately started from an empty database.
 
+  **Deferred on 2026-09-02.** Philipp chose to leave it standing. It costs
+  nothing on the exhausted free tier, and once the quota resets with the next
+  billing period the old data is reachable again should anyone want it. Delete
+  it after that.
+
 - [ ] **Step 4: Remind Philipp to rotate the Coolify API token**, which he
   deferred to the end of the migration.
 

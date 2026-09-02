@@ -32,20 +32,21 @@ Copy `.env.example` to `.env.local` and fill in what you have:
 ## Architecture
 
 Single Next.js app (no separate worker/queue infra) — see
-`src/app/api/cron/*` for the scheduled check endpoints, triggered by Vercel
-Cron (`vercel.json`) in production. Data model lives in `src/db/schema.ts`
+`src/app/api/cron/*` for the scheduled check endpoints, fired by the `cron`
+container (`crons.json`) in production. Data model lives in `src/db/schema.ts`
 (Drizzle). Check implementations live in `src/checks/*`; SEO providers behind
 a pluggable interface in `src/providers/*`.
 
 ### Local cron
 
-`vercel.json`'s `crons` array is the single source of truth for schedules in
+`crons.json`'s `crons` array is the single source of truth for schedules in
 both environments — `pnpm dev` runs `next dev` and `scripts/local-cron.ts`
 together (via `concurrently`, labeled `next`/`cron` in the log output). The
-cron script reads `vercel.json` directly and fires an HTTP request at each
-route on its schedule, exactly like Vercel Cron does in production — no
-route code needs to know it isn't running on Vercel. If you change a
-schedule, only edit `vercel.json`; both environments pick it up.
+same script runs as its own container in production, reading the same file
+and firing an HTTP request at each route on its schedule, so both
+environments behave identically. If you change a schedule, only edit
+`crons.json`; both environments pick it up. The app also reads the file at
+runtime to show each check's cadence in the UI.
 
 - If `next dev` runs on a non-default port, set `APP_URL` (e.g.
   `APP_URL=http://localhost:4000 pnpm cron:local`) so the cron runner targets
@@ -55,6 +56,24 @@ schedule, only edit `vercel.json`; both environments pick it up.
   scheduling it — useful when actively testing a check without waiting for
   the next tick. It's a separate script (not part of `pnpm dev`) because
   firing immediately can race `next dev` still booting.
+
+## Deployment
+
+Self-hosted on Coolify as a "Docker Compose" resource built from
+`docker-compose.prod.yml`: `app` (Next.js standalone), `cron` (the schedule
+runner above) and `postgres` on a named volume. `Dockerfile` builds all of
+it; `docker-entrypoint.sh` applies pending migrations before starting the
+server, so a failed migration stops the container instead of serving against
+a stale schema.
+
+Two environment variables matter only in production: `AUTH_URL` and
+`AUTH_TRUST_HOST`. Auth.js derives `trustHost` from those (or from a
+platform marker like `VERCEL`), and off such a platform every sign-in fails
+with `UntrustedHost` unless they are set. Both live in the compose file.
+
+See `docs/superpowers/specs/2026-08-26-coolify-migration-design.md` for the
+reasoning and `docs/superpowers/plans/2026-08-26-coolify-migration.md` for
+the step-by-step record.
 
 ## Scripts
 

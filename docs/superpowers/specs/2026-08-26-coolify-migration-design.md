@@ -1,7 +1,7 @@
 # Migrating Heimdall from Vercel + Neon to Coolify
 
 Date: 2026-08-26
-Status: draft, awaiting review
+Status: implemented 2026-08-26, cutover completed, Vercel removed 2026-09-02
 
 ## Why
 
