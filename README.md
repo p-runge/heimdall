@@ -33,7 +33,9 @@ Copy `.env.example` to `.env.local` and fill in what you have:
   here. `NTFY_TOKEN` authenticates a publisher account that may write to
   Heimdall's topic and nothing else; a public server takes posts without it.
   The topic itself is a constant in `src/lib/ntfy.ts`, since the account's
-  write-only grant covers only that one.
+  write-only grant covers only that one. How loudly each alert type pushes —
+  an outage vibrates through a silent phone, a rank drop arrives quietly — is
+  mapped per type and severity in `src/lib/alerts.ts`.
 - `CRON_SECRET` — set this in production; cron routes check it via
   `Authorization: Bearer <CRON_SECRET>`. Left unset, cron routes are open
   (fine for local dev, required before deploying).
