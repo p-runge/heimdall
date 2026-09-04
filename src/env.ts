@@ -14,6 +14,11 @@ export const env = createEnv({
     DATAFORSEO_LOGIN: z.string().optional(),
     DATAFORSEO_PASSWORD: z.string().optional(),
     DISCORD_WEBHOOK_URL: z.string().optional(),
+    // ntfy publishing: the base URL is the public ntfy domain, because Heimdall
+    // is a separate Coolify resource and cannot reach ntfy's internal hostname.
+    // The topic is not configurable; see src/lib/ntfy.ts.
+    NTFY_BASE_URL: z.url().optional(),
+    NTFY_TOKEN: z.string().optional(),
     CRON_SECRET: z.string().optional(),
   },
   client: {},

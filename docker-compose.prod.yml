@@ -31,6 +31,10 @@ services:
       DATAFORSEO_LOGIN: "${DATAFORSEO_LOGIN}"
       DATAFORSEO_PASSWORD: "${DATAFORSEO_PASSWORD}"
       DISCORD_WEBHOOK_URL: "${DISCORD_WEBHOOK_URL}"
+      # ntfy runs as its own Coolify resource in a separate Docker network, so
+      # this has to be the public domain — http://ntfy is unreachable from here.
+      NTFY_BASE_URL: "${NTFY_BASE_URL}"
+      NTFY_TOKEN: "${NTFY_TOKEN}"
       CRON_SECRET: "${CRON_SECRET}"
     depends_on:
       postgres:

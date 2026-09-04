@@ -25,6 +25,15 @@ Copy `.env.example` to `.env.local` and fill in what you have:
   rank tracking. Without these, rank checks are skipped (logged, not fatal).
 - `DISCORD_WEBHOOK_URL` — a Discord incoming webhook URL for alert
   notifications. Without it, alerts stay in-app only.
+- `NTFY_BASE_URL` / `NTFY_TOKEN` — push alerts to a phone via
+  [ntfy](https://ntfy.sh). Alerts go to every configured channel, so ntfy and
+  Discord can run side by side or on their own. The base URL must be the ntfy
+  server's public domain: ntfy is a separate Coolify resource in its own
+  Docker network, so the internal `http://ntfy` hostname does not resolve from
+  here. `NTFY_TOKEN` authenticates a publisher account that may write to
+  Heimdall's topic and nothing else; a public server takes posts without it.
+  The topic itself is a constant in `src/lib/ntfy.ts`, since the account's
+  write-only grant covers only that one.
 - `CRON_SECRET` — set this in production; cron routes check it via
   `Authorization: Bearer <CRON_SECRET>`. Left unset, cron routes are open
   (fine for local dev, required before deploying).
