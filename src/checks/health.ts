@@ -169,7 +169,7 @@ async function evaluateHealthAlerts(
   }
 
   if (downPatterns.length > 0) {
-    const summary = downPatterns.map((d) => `${d.patternKey} (${d.reason})`).join(", ");
+    const summary = downPatterns.map((d) => `${d.patternKey}: ${d.reason}`).join("; ");
     await openAlert({
       siteId: site.id,
       type: "site_down",

@@ -14,7 +14,8 @@
     "db:studio": "drizzle-kit studio",
     "db:migrate:prod": "tsx scripts/migrate-prod.ts",
     "cron:local": "tsx scripts/local-cron.ts",
-    "cron:local:now": "tsx scripts/local-cron.ts --now"
+    "cron:local:now": "tsx scripts/local-cron.ts --now",
+    "test": "tsx --test 'src/**/*.test.ts'"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

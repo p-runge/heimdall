@@ -1,12 +1,26 @@
+import { classifyFetchError, describeTimeout, probeDns, type FetchError } from "@/lib/fetch-error";
+
 export const HEIMDALL_USER_AGENT = "HeimdallBot/1.0 (+https://heimdall.local)";
 
 type FetchHtmlResult =
   | { ok: true; status: number; responseTimeMs: number; html: string; headers: Headers; finalUrl: string }
-  | { ok: false; responseTimeMs: number; errorMessage: string; status?: number };
+  | { ok: false; responseTimeMs: number; errorMessage: string; error: FetchError; status?: number };
+
+async function toFailure(err: unknown, url: string, timedOut: boolean, timeoutMs: number, startedAt: number) {
+  const responseTimeMs = Date.now() - startedAt;
+  const error = timedOut
+    ? describeTimeout(timeoutMs, await probeDns(new URL(url).hostname))
+    : classifyFetchError(err);
+  return { ok: false as const, responseTimeMs, errorMessage: error.message, error };
+}
 
 export async function fetchHtml(url: string, timeoutMs = 10_000): Promise<FetchHtmlResult> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
   const startedAt = Date.now();
 
   try {
@@ -25,11 +39,7 @@ export async function fetchHtml(url: string, timeoutMs = 10_000): Promise<FetchH
       finalUrl: res.url,
     };
   } catch (err) {
-    return {
-      ok: false,
-      responseTimeMs: Date.now() - startedAt,
-      errorMessage: err instanceof Error ? err.message : String(err),
-    };
+    return await toFailure(err, url, timedOut, timeoutMs, startedAt);
   } finally {
     clearTimeout(timeout);
   }
@@ -39,7 +49,11 @@ export async function fetchHtml(url: string, timeoutMs = 10_000): Promise<FetchH
  * used where the status code itself is the signal (e.g. preview-environment auth walls). */
 export async function fetchHtmlNoRedirect(url: string, timeoutMs = 10_000): Promise<FetchHtmlResult> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
   const startedAt = Date.now();
 
   try {
@@ -58,11 +72,7 @@ export async function fetchHtmlNoRedirect(url: string, timeoutMs = 10_000): Prom
       finalUrl: res.url,
     };
   } catch (err) {
-    return {
-      ok: false,
-      responseTimeMs: Date.now() - startedAt,
-      errorMessage: err instanceof Error ? err.message : String(err),
-    };
+    return await toFailure(err, url, timedOut, timeoutMs, startedAt);
   } finally {
     clearTimeout(timeout);
   }
