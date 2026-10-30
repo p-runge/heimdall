@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
@@ -7,6 +8,19 @@ import { createSite, deleteClient, updateClient } from "@/lib/actions";
 import { Badge, Field, Panel, TextInput } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 import { EditClientForm } from "./EditClientForm";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const client = await db.query.clients.findFirst({
+    where: eq(clients.id, id),
+    columns: { name: true },
+  });
+  return { title: client?.name ?? "Client not found" };
+}
 
 export default async function ClientDetailPage({
   params,

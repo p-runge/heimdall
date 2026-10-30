@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Cinzel, Inter, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
@@ -23,13 +23,29 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Heimdall — All-Seeing Site Watch",
+  title: {
+    template: "%s · Heimdall",
+    default: "Heimdall — All-Seeing Site Watch",
+  },
   description:
-    "Health, deploy-drift, and SEO rank monitoring for every website you maintain.",
+    "Uptime, deploy drift, SEO rank and compliance monitoring for every website you maintain.",
+  applicationName: "Heimdall",
+  appleWebApp: {
+    title: "Heimdall",
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: {
+    telephone: false,
+  },
   robots: {
     index: false,
     follow: false,
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#05070d",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({

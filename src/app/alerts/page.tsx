@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { desc, ne } from "drizzle-orm";
 import { db } from "@/db";
@@ -7,6 +8,8 @@ import { ALERT_TYPE_LABELS } from "@/lib/alerts";
 import { isIntegrationConfigured } from "@/lib/integrations";
 import { Badge, Callout, Panel } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
+
+export const metadata: Metadata = { title: "Alerts" };
 
 export default async function AlertsPage() {
   const allAlerts = await db.query.alerts.findMany({

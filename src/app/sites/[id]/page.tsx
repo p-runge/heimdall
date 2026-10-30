@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, desc, eq, gte, sql } from "drizzle-orm";
@@ -93,6 +94,19 @@ function getSiteDetail(id: string) {
       alerts: { where: eq(alerts.status, "open") },
     },
   });
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const site = await db.query.sites.findFirst({
+    where: eq(sites.id, id),
+    columns: { name: true },
+  });
+  return { title: site?.name ?? "Site not found" };
 }
 
 export default async function SiteDetailPage({

@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import { getIntegrationStatuses } from "@/lib/integrations";
 import { Badge, Panel } from "@/components/ui";
+
+export const metadata: Metadata = { title: "Settings" };
 
 export default function SettingsPage() {
   const integrations = getIntegrationStatuses();

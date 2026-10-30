@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth, signIn } from "@/auth";
 import { Callout, Panel } from "@/components/ui";
 import { Logo } from "@/components/logo";
+
+export const metadata: Metadata = { title: "Sign in" };
 
 function errorMessage(error?: string) {
   if (error === "AccessDenied") {

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { desc } from "drizzle-orm";
 import { db } from "@/db";
@@ -5,6 +6,8 @@ import { clients } from "@/db/schema";
 import { createClient } from "@/lib/actions";
 import { Field, Panel, TextInput } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
+
+export const metadata: Metadata = { title: "Clients" };
 
 export default async function ClientsPage() {
   const allClients = await db.query.clients.findMany({
