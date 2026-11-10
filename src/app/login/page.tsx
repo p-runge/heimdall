@@ -1,14 +1,24 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth, signIn } from "@/auth";
+import { env } from "@/env";
 import { Callout, Panel } from "@/components/ui";
 import { Logo } from "@/components/logo";
 
 export const metadata: Metadata = { title: "Sign in" };
 
+// Individually allowed addresses are never listed here, the page is public.
+function accessHint() {
+  const domain = env.ALLOWED_EMAIL_DOMAIN;
+  const hasInvites = env.ALLOWED_EMAILS.length > 0;
+  if (domain && hasInvites) return `Restricted to @${domain} Google accounts and invited addresses.`;
+  if (domain) return `Restricted to @${domain} Google accounts.`;
+  return "Restricted to invited Google accounts.";
+}
+
 function errorMessage(error?: string) {
   if (error === "AccessDenied") {
-    return `Access is restricted to @${process.env.ALLOWED_EMAIL_DOMAIN} Google accounts.`;
+    return `This account has no access. ${accessHint()}`;
   }
   if (error) return "Something went wrong signing you in. Please try again.";
   return null;
@@ -31,7 +41,7 @@ export default async function LoginPage({
       <Panel className="w-full text-center">
         <h1 className="font-display text-xl text-mist-100">Sign in to Heimdall</h1>
         <p className="mt-2 text-sm text-mist-400">
-          Restricted to @{process.env.ALLOWED_EMAIL_DOMAIN} Google accounts.
+          {accessHint()}
         </p>
         {message && (
           <div className="mt-4">

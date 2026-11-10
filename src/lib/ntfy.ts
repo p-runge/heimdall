@@ -1,12 +1,5 @@
 import { env } from "@/env";
 
-/**
- * The one topic Heimdall publishes to. Fixed in code rather than configured:
- * the ntfy account behind NTFY_TOKEN has write-only access to exactly this
- * topic, so pointing it elsewhere could only produce rejected posts.
- */
-const TOPIC = "heimdall";
-
 /** Named levels mapped onto ntfy's 1..5 scale. See https://docs.ntfy.sh/publish/#message-priority */
 const PRIORITIES = { min: 1, low: 2, default: 3, high: 4, max: 5 } as const;
 
@@ -51,7 +44,7 @@ export async function publishToNtfy({
     method: "POST",
     headers,
     body: JSON.stringify({
-      topic: TOPIC,
+      topic: env.NTFY_TOPIC,
       message,
       priority: PRIORITIES[priority],
       ...(title ? { title } : {}),

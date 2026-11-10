@@ -39,7 +39,7 @@ export function getIntegrationStatuses(): IntegrationStatus[] {
       name: "ntfy",
       configured: isNtfyConfigured(),
       description: "Pushes alert notifications to phones via ntfy. The token authenticates the publisher account against a private ntfy server; public ones take posts without it.",
-      envVars: ["NTFY_BASE_URL", "NTFY_TOKEN"],
+      envVars: ["NTFY_BASE_URL", "NTFY_TOKEN", "NTFY_TOPIC"],
     },
   ];
 }
