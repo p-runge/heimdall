@@ -2,22 +2,18 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { driftCheckRuns, driftPullRequests, type sites } from "@/db/schema";
 import { getOctokit } from "@/lib/github";
+import { friendlyGithubError, isGithubAuthError } from "@/lib/github-error";
 import { openAlert, resolveAlert } from "@/lib/alerts";
 
 type Site = typeof sites.$inferSelect;
 
 const STALE_PR_MS = 3 * 24 * 60 * 60 * 1000;
 
-function friendlyGithubError(err: unknown, context: string) {
-  const status = err && typeof err === "object" && "status" in err ? err.status : undefined;
-  if (status === 404) return `${context} — check that it exists and the token can access it.`;
-  return `${context}: ${err instanceof Error ? err.message : String(err)}`;
-}
-
 export async function runDriftCheck(site: Site) {
   if (!site.githubOwner || !site.githubRepo) return null;
 
   const prodBranch = site.prodBranch;
+  const repoName = `${site.githubOwner}/${site.githubRepo}`;
   const octokit = getOctokit();
 
   // Also doubles as an "does this branch exist?" check, since a bad branch
@@ -32,10 +28,11 @@ export async function runDriftCheck(site: Site) {
     branchHeadSha = branch.commit.sha;
   } catch (err) {
     return {
-      error: friendlyGithubError(
-        err,
-        `Branch "${prodBranch}" doesn't exist in ${site.githubOwner}/${site.githubRepo}`,
-      ),
+      error: friendlyGithubError(err, {
+        action: `Couldn't read branch "${prodBranch}" in ${repoName}`,
+        permission: "Contents",
+        notFound: `Branch "${prodBranch}" doesn't exist in ${repoName}`,
+      }),
     };
   }
 
@@ -53,13 +50,18 @@ export async function runDriftCheck(site: Site) {
     openPRs = prs.filter((pr) => !pr.draft);
   } catch (err) {
     return {
-      error: friendlyGithubError(err, `Couldn't list pull requests for ${site.githubOwner}/${site.githubRepo}`),
+      error: friendlyGithubError(err, {
+        action: `Couldn't list pull requests for ${repoName}`,
+        permission: "Pull requests",
+      }),
     };
   }
 
   // GitHub Deployments (e.g. created by Vercel's GitHub integration) tell us
   // what's actually live, separate from what's merged. Soft-degrade to null
   // when a repo has none — not every repo uses a provider that records them.
+  // A token that can't read deployments is reported instead, since degrading
+  // would silently disable the deployment-lag alert.
   let deploymentSha: string | null = null;
   let deploymentCommitsBehind: number | null = null;
   try {
@@ -83,7 +85,15 @@ export async function runDriftCheck(site: Site) {
               })
             ).data.ahead_by;
     }
-  } catch {
+  } catch (err) {
+    if (isGithubAuthError(err)) {
+      return {
+        error: friendlyGithubError(err, {
+          action: `Couldn't list deployments for ${repoName}`,
+          permission: "Deployments",
+        }),
+      };
+    }
     deploymentSha = null;
     deploymentCommitsBehind = null;
   }
