@@ -16,6 +16,15 @@ import {
 import { runHealthCheck } from "@/checks/health";
 import { submitRankChecksForSite } from "@/checks/rank";
 import { reconcileSecurityHeaders } from "@/checks/security-headers";
+import { isSignedIn } from "@/lib/session";
+
+// Server actions are reachable by a plain POST, so each one checks the session
+// itself instead of relying on the proxy alone.
+async function requireUser(): Promise<string> {
+  const session = await auth();
+  if (!isSignedIn(session)) throw new Error("not signed in");
+  return session.user.email;
+}
 
 function requireString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -41,6 +50,7 @@ function normalizeUrl<T extends string | undefined>(value: T): T {
 }
 
 export async function createClient(formData: FormData) {
+  await requireUser();
   const name = requireString(formData, "name");
   const contactEmail = optionalString(formData, "contactEmail");
   const notes = optionalString(formData, "notes");
@@ -50,12 +60,14 @@ export async function createClient(formData: FormData) {
 }
 
 export async function deleteClient(clientId: string) {
+  await requireUser();
   await db.delete(clients).where(eq(clients.id, clientId));
   revalidatePath("/clients");
   redirect("/clients");
 }
 
 export async function updateClient(clientId: string, formData: FormData) {
+  await requireUser();
   const name = requireString(formData, "name");
   const contactEmail = optionalString(formData, "contactEmail");
   const notes = optionalString(formData, "notes");
@@ -69,6 +81,7 @@ export async function updateClient(clientId: string, formData: FormData) {
 }
 
 export async function createSite(formData: FormData) {
+  await requireUser();
   const clientId = requireString(formData, "clientId");
   const name = requireString(formData, "name");
   const primaryUrl = normalizeUrl(requireString(formData, "primaryUrl"));
@@ -96,6 +109,7 @@ export async function createSite(formData: FormData) {
 }
 
 export async function deleteSite(siteId: string, clientId: string) {
+  await requireUser();
   await db.delete(sites).where(eq(sites.id, siteId));
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/");
@@ -103,6 +117,7 @@ export async function deleteSite(siteId: string, clientId: string) {
 }
 
 export async function updateSite(siteId: string, formData: FormData) {
+  await requireUser();
   const name = requireString(formData, "name");
   const primaryUrl = normalizeUrl(requireString(formData, "primaryUrl"));
   const previewUrl = normalizeUrl(optionalString(formData, "previewUrl"));
@@ -127,6 +142,7 @@ export async function updateSite(siteId: string, formData: FormData) {
 }
 
 export async function createKeyword(formData: FormData) {
+  await requireUser();
   const siteId = requireString(formData, "siteId");
   const phrase = requireString(formData, "phrase");
   const country = optionalString(formData, "country") ?? "de";
@@ -144,11 +160,13 @@ export async function createKeyword(formData: FormData) {
 }
 
 export async function deleteKeyword(keywordId: string, siteId: string) {
+  await requireUser();
   await db.delete(keywords).where(eq(keywords.id, keywordId));
   revalidatePath(`/sites/${siteId}`);
 }
 
 export async function reorderKeywords(siteId: string, orderedKeywordIds: string[]) {
+  await requireUser();
   await db.transaction(async (tx) => {
     await Promise.all(
       orderedKeywordIds.map((keywordId, index) =>
@@ -163,6 +181,7 @@ export async function reorderKeywords(siteId: string, orderedKeywordIds: string[
 }
 
 export async function setSeoWatcher(siteId: string, currentlyEnabled: boolean) {
+  await requireUser();
   await db
     .update(sites)
     .set({ seoWatcherEnabled: !currentlyEnabled })
@@ -180,6 +199,7 @@ export async function runRankCheckNow(
   _prevState: RankCheckActionState,
   _formData: FormData,
 ): Promise<RankCheckActionState> {
+  await requireUser();
   const site = await db.query.sites.findFirst({ where: eq(sites.id, siteId) });
   if (!site) throw new Error("site not found");
 
@@ -209,12 +229,14 @@ export async function runRankCheckNow(
 }
 
 export async function acknowledgeAlert(alertId: string) {
+  await requireUser();
   await db.update(alerts).set({ status: "acknowledged" }).where(eq(alerts.id, alertId));
   revalidatePath("/alerts");
   revalidatePath("/");
 }
 
 export async function resolveAlertManually(alertId: string) {
+  await requireUser();
   await db
     .update(alerts)
     .set({ status: "resolved", resolvedAt: new Date(), resolutionNote: "Resolved manually." })
@@ -251,14 +273,14 @@ export async function disableSecurityProtection(
   protectionKey: string,
   formData: FormData,
 ) {
+  const email = await requireUser();
   const key = requireProtectionKey(protectionKey);
-  const session = await auth();
   const now = new Date();
   const disabled = {
     status: "disabled" as const,
     updatedAt: now,
     disabledAt: now,
-    disabledBy: session?.user?.email ?? null,
+    disabledBy: email,
     disabledNote: optionalString(formData, "note") ?? null,
   };
 
@@ -274,6 +296,7 @@ export async function disableSecurityProtection(
 }
 
 export async function monitorSecurityProtection(siteId: string, protectionKey: string) {
+  await requireUser();
   const key = requireProtectionKey(protectionKey);
   await db
     .update(siteSecurityHeaderExpectations)

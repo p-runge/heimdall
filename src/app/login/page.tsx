@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth, hostedDomainHint, signIn } from "@/auth";
 import { env } from "@/env";
+import { isSignedIn } from "@/lib/session";
 import { Callout, Panel } from "@/components/ui";
 import { Logo } from "@/components/logo";
 
@@ -29,8 +30,7 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ next?: string; error?: string }>;
 }) {
-  const session = await auth();
-  if (session) redirect("/");
+  if (isSignedIn(await auth())) redirect("/");
 
   const { next, error } = await searchParams;
   const message = errorMessage(error);

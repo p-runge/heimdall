@@ -21,8 +21,9 @@ services:
       DATABASE_URL: "postgres://heimdall:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/heimdall"
       # Auth.js resolves trustHost from AUTH_URL/AUTH_TRUST_HOST/VERCEL/CF_PAGES.
       # None are set off Vercel, so without these two every sign-in fails with
-      # UntrustedHost. See @auth/core lib/utils/env.js.
-      AUTH_URL: "${AUTH_URL}"
+      # UntrustedHost. See @auth/core lib/utils/env.js. AUTH_URL is required:
+      # an empty value counts as set there and turns AUTH_TRUST_HOST off.
+      AUTH_URL: "${AUTH_URL:?}"
       AUTH_TRUST_HOST: "true"
       AUTH_SECRET: "${AUTH_SECRET}"
       AUTH_GOOGLE_ID: "${AUTH_GOOGLE_ID}"
