@@ -50,6 +50,13 @@
       "when": 1784727452550,
       "tag": "0006_legal_wolfpack",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794355553217,
+      "tag": "0007_security_headers",
+      "breakpoints": true
     }
   ]
 }

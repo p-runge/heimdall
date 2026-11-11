@@ -2,11 +2,20 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
+import { auth } from "@/auth";
 import { db } from "@/db";
-import { alerts, clients, keywords, sites } from "@/db/schema";
+import {
+  alerts,
+  clients,
+  keywords,
+  securityHeaderCheckRuns,
+  sites,
+  siteSecurityHeaderExpectations,
+} from "@/db/schema";
 import { runHealthCheck } from "@/checks/health";
 import { submitRankChecksForSite } from "@/checks/rank";
+import { reconcileSecurityHeaders } from "@/checks/security-headers";
 
 function requireString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -212,4 +221,75 @@ export async function resolveAlertManually(alertId: string) {
     .where(eq(alerts.id, alertId));
   revalidatePath("/alerts");
   revalidatePath("/");
+}
+
+const PROTECTION_KEY_PATTERN = /^(hsts|nosniff|framing|referrer_policy|permissions_policy|csp:[a-z0-9-]+)$/;
+
+function requireProtectionKey(protectionKey: string) {
+  if (!PROTECTION_KEY_PATTERN.test(protectionKey)) {
+    throw new Error(`unknown protection key: ${protectionKey}`);
+  }
+  return protectionKey;
+}
+
+/** Re-evaluates the site's latest header run so the alert reflects the changed expectations. */
+async function reconcileLatestSecurityHeaderRun(siteId: string) {
+  const site = await db.query.sites.findFirst({ where: eq(sites.id, siteId) });
+  const run = await db.query.securityHeaderCheckRuns.findFirst({
+    where: eq(securityHeaderCheckRuns.siteId, siteId),
+    orderBy: desc(securityHeaderCheckRuns.checkedAt),
+  });
+  if (site && run) await reconcileSecurityHeaders(site, run);
+
+  revalidatePath(`/sites/${siteId}`);
+  revalidatePath("/alerts");
+  revalidatePath("/");
+}
+
+export async function disableSecurityProtection(
+  siteId: string,
+  protectionKey: string,
+  formData: FormData,
+) {
+  const key = requireProtectionKey(protectionKey);
+  const session = await auth();
+  const now = new Date();
+  const disabled = {
+    status: "disabled" as const,
+    updatedAt: now,
+    disabledAt: now,
+    disabledBy: session?.user?.email ?? null,
+    disabledNote: optionalString(formData, "note") ?? null,
+  };
+
+  await db
+    .insert(siteSecurityHeaderExpectations)
+    .values({ siteId, protectionKey: key, ...disabled })
+    .onConflictDoUpdate({
+      target: [siteSecurityHeaderExpectations.siteId, siteSecurityHeaderExpectations.protectionKey],
+      set: disabled,
+    });
+
+  await reconcileLatestSecurityHeaderRun(siteId);
+}
+
+export async function monitorSecurityProtection(siteId: string, protectionKey: string) {
+  const key = requireProtectionKey(protectionKey);
+  await db
+    .update(siteSecurityHeaderExpectations)
+    .set({
+      status: "expected",
+      updatedAt: new Date(),
+      disabledAt: null,
+      disabledBy: null,
+      disabledNote: null,
+    })
+    .where(
+      and(
+        eq(siteSecurityHeaderExpectations.siteId, siteId),
+        eq(siteSecurityHeaderExpectations.protectionKey, key),
+      ),
+    );
+
+  await reconcileLatestSecurityHeaderRun(siteId);
 }

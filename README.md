@@ -29,6 +29,13 @@ preview URL, a GitHub repository and a list of SEO keywords.
   (Impressum) and a privacy policy link and detects common cookie consent tools
   (Cookiebot, Usercentrics, Borlabs Cookie, OneTrust, CookieYes, Klaro). These
   are aimed at German and EU sites and are heuristics, not legal advice.
+- **Security header regressions.** A daily check reads HSTS,
+  X-Content-Type-Options, framing protection (X-Frame-Options or CSP
+  `frame-ancestors`), Referrer-Policy, CSP and Permissions-Policy from the final
+  response. Heimdall remembers which protections a site has sent and raises an
+  alert when one disappears, for example after a relaunch. Headers a site never
+  sent are shown on its page without an alert, and a protection can be marked
+  as deliberately disabled per site.
 - **SEO rank tracking.** Track Google positions for keywords per site, country
   and device, with a history chart and alerts on rank drops. Rank checks go
   through [DataForSEO](https://dataforseo.com) and cost money per keyword, so

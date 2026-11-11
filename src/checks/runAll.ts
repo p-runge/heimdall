@@ -3,12 +3,14 @@ import { runHealthCheck } from "@/checks/health";
 import { runComplianceCheck } from "@/checks/compliance";
 import { runDriftCheck } from "@/checks/drift";
 import { runPreviewCheck } from "@/checks/preview";
+import { runSecurityHeaderCheck } from "@/checks/security-headers";
 
 type Site = typeof sites.$inferSelect & {
   healthCheckRuns: { checkedAt: Date }[];
   complianceCheckRuns: { checkedAt: Date }[];
   driftCheckRuns: { checkedAt: Date }[];
   previewCheckRuns: { checkedAt: Date }[];
+  securityHeaderCheckRuns: { checkedAt: Date }[];
 };
 
 // Every page view re-runs these live so panels reflect current state — but
@@ -39,12 +41,14 @@ export async function runSiteChecks(site: Site) {
   const skipCompliance = isRecent(site.complianceCheckRuns);
   const skipDrift = hasGithub && isRecent(site.driftCheckRuns);
   const skipPreview = isRecent(site.previewCheckRuns);
+  const skipSecurityHeaders = isRecent(site.securityHeaderCheckRuns);
 
   const results = await Promise.allSettled([
     skipHealth ? Promise.resolve(null) : runHealthCheck(site),
     skipCompliance ? Promise.resolve(null) : runComplianceCheck(site),
     hasGithub && !skipDrift ? runDriftCheck(site) : Promise.resolve(null),
     skipPreview ? Promise.resolve(null) : runPreviewCheck(site),
+    skipSecurityHeaders ? Promise.resolve(null) : runSecurityHeaderCheck(site),
   ]);
   const [, , driftResult] = results;
 
@@ -66,7 +70,12 @@ export async function runSiteChecks(site: Site) {
         ? String(driftResult.reason)
         : null;
 
-  const ranAnyCheck = !skipHealth || !skipCompliance || (hasGithub && !skipDrift) || !skipPreview;
+  const ranAnyCheck =
+    !skipHealth ||
+    !skipCompliance ||
+    (hasGithub && !skipDrift) ||
+    !skipPreview ||
+    !skipSecurityHeaders;
 
   return { driftError, ranAnyCheck };
 }

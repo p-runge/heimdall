@@ -4,8 +4,8 @@ import { db } from "@/db";
 import { alerts, type alertTypeEnum, type alertSeverityEnum } from "@/db/schema";
 import { publishToNtfy, type NtfyPriority } from "@/lib/ntfy";
 
-type AlertType = (typeof alertTypeEnum.enumValues)[number];
-type AlertSeverity = (typeof alertSeverityEnum.enumValues)[number];
+export type AlertType = (typeof alertTypeEnum.enumValues)[number];
+export type AlertSeverity = (typeof alertSeverityEnum.enumValues)[number];
 
 /** Human-readable names for the alert types, shared by the UI and notifications. */
 export const ALERT_TYPE_LABELS: Record<AlertType, string> = {
@@ -17,6 +17,7 @@ export const ALERT_TYPE_LABELS: Record<AlertType, string> = {
   lighthouse_regression: "Lighthouse regression",
   preview_exposed: "Preview exposed",
   compliance_issue: "Compliance issue",
+  security_header_regression: "Security header regression",
 };
 
 /** Opens an alert of this type for this site, unless one is already open. */
@@ -45,7 +46,7 @@ export async function openAlert({
     .values({ siteId, type, severity, message, relatedRunType, relatedRunId })
     .returning();
 
-  await notify(alert.type, alert.message, severity);
+  await notifyAlert(alert.type, alert.message, severity);
   return alert;
 }
 
@@ -58,7 +59,7 @@ export async function resolveAlert(siteId: string, type: AlertType, note?: strin
 }
 
 /** Fans the alert out to every configured channel; unconfigured ones no-op. */
-async function notify(type: AlertType, message: string, severity: AlertSeverity) {
+export async function notifyAlert(type: AlertType, message: string, severity: AlertSeverity) {
   await Promise.allSettled([
     notifyDiscord(message, severity),
     notifyNtfy(type, message, severity),
@@ -113,6 +114,11 @@ const NTFY_ALERT_STYLES: Record<
   // Missing Impressum or privacy policy, unconsented Google Fonts. Legal risk
   // that has usually been there a while; it needs a fix, not a fire drill.
   compliance_issue: { tags: ["scales"], priority: { warning: "default", critical: "high" } },
+  // A protection the site used to send is gone, typically after a relaunch or
+  // a proxy change. Critical when HSTS or framing protection is lost — those
+  // open the door to downgrade and clickjacking attacks — but it still waits
+  // for the workday rather than waking anyone.
+  security_header_regression: { tags: ["shield"], priority: { warning: "default", critical: "high" } },
   // No emitter yet; SEO findings are advisory by nature.
   seo_issue: { tags: ["mag"], priority: { warning: "default", critical: "high" } },
   // Open pull requests or production lagging behind the prod branch. A process

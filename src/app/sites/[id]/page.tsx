@@ -11,6 +11,7 @@ import {
   keywords,
   previewCheckRuns,
   rankCheckRuns,
+  securityHeaderCheckRuns,
   sitePagePatterns,
   sites,
 } from "@/db/schema";
@@ -32,6 +33,7 @@ import { SeoWatcherControls } from "./SeoWatcherControls";
 import { EditSiteForm } from "./EditSiteForm";
 import { RankHistoryChart } from "./RankHistoryChart";
 import { KeywordList, type KeywordListItem } from "./KeywordList";
+import { SecurityHeadersPanel } from "./SecurityHeadersPanel";
 
 // "Check once" submits one DataForSEO task per keyword sequentially, which can take
 // longer than the platform's default Server Action timeout with several keywords.
@@ -80,6 +82,8 @@ function getSiteDetail(id: string) {
       },
       complianceCheckRuns: { orderBy: desc(complianceCheckRuns.checkedAt), limit: 1 },
       previewCheckRuns: { orderBy: desc(previewCheckRuns.checkedAt), limit: 1 },
+      securityHeaderCheckRuns: { orderBy: desc(securityHeaderCheckRuns.checkedAt), limit: 1 },
+      securityHeaderExpectations: true,
       driftCheckRuns: {
         orderBy: desc(driftCheckRuns.checkedAt),
         limit: 1,
@@ -393,6 +397,12 @@ export default async function SiteDetailPage({
             <p className="mt-2 text-mist-500">No checks yet.</p>
           )}
         </Panel>
+
+        <SecurityHeadersPanel
+          siteId={site.id}
+          run={site.securityHeaderCheckRuns[0]}
+          expectations={site.securityHeaderExpectations}
+        />
 
         <Panel>
           <h2 className="font-display text-sm tracking-wide text-mist-300">

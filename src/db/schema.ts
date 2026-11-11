@@ -11,6 +11,7 @@ import {
   unique,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+import type { ProtectionKey, RawSecurityHeaders } from "@/lib/security-headers";
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -31,11 +32,16 @@ export const alertTypeEnum = pgEnum("alert_type", [
   "lighthouse_regression",
   "preview_exposed",
   "compliance_issue",
+  "security_header_regression",
 ]);
 export const alertSeverityEnum = pgEnum("alert_severity", ["warning", "critical"]);
 export const alertStatusEnum = pgEnum("alert_status", ["open", "acknowledged", "resolved"]);
 export const rankProviderEnum = pgEnum("rank_provider", ["dataforseo", "gsc"]);
 export const deviceEnum = pgEnum("device", ["desktop", "mobile"]);
+export const securityHeaderExpectationStatusEnum = pgEnum("security_header_expectation_status", [
+  "expected",
+  "disabled",
+]);
 
 export const clients = pgTable("clients", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -132,6 +138,43 @@ export const complianceCheckRuns = pgTable("compliance_check_runs", {
     .notNull()
     .default(false),
 });
+
+export const securityHeaderCheckRuns = pgTable("security_header_check_runs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  siteId: uuid("site_id")
+    .notNull()
+    .references(() => sites.id, { onDelete: "cascade" }),
+  checkedAt: timestamp("checked_at").notNull().defaultNow(),
+  // The response after redirects; HSTS only counts when this is https.
+  finalUrl: text("final_url").notNull(),
+  httpStatus: integer("http_status").notNull(),
+  // Raw values, display-only. Comparisons use `protections`.
+  headers: jsonb("headers").$type<RawSecurityHeaders>().notNull(),
+  protections: jsonb("protections").$type<ProtectionKey[]>().notNull(),
+});
+
+// What a site is expected to keep sending, per protection. A row appears the
+// first time a protection is seen ("expected"); the user can mark it
+// "disabled" to declare the protection deliberately off for this site. This
+// table, not the alert history, is the source of truth for both.
+export const siteSecurityHeaderExpectations = pgTable(
+  "site_security_header_expectations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    siteId: uuid("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    protectionKey: text("protection_key").notNull(),
+    status: securityHeaderExpectationStatusEnum("status").notNull(),
+    firstSeenAt: timestamp("first_seen_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    disabledAt: timestamp("disabled_at"),
+    // Email of the signed-in user who disabled the protection.
+    disabledBy: text("disabled_by"),
+    disabledNote: text("disabled_note"),
+  },
+  (table) => [unique().on(table.siteId, table.protectionKey)],
+);
 
 export const previewCheckRuns = pgTable("preview_check_runs", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -262,6 +305,8 @@ export const sitesRelations = relations(sites, ({ one, many }) => ({
   healthCheckRuns: many(healthCheckRuns),
   sitePagePatterns: many(sitePagePatterns),
   complianceCheckRuns: many(complianceCheckRuns),
+  securityHeaderCheckRuns: many(securityHeaderCheckRuns),
+  securityHeaderExpectations: many(siteSecurityHeaderExpectations),
   previewCheckRuns: many(previewCheckRuns),
   lighthouseRuns: many(lighthouseRuns),
   driftCheckRuns: many(driftCheckRuns),
@@ -285,6 +330,17 @@ export const healthCheckRunsRelations = relations(healthCheckRuns, ({ one }) => 
 export const complianceCheckRunsRelations = relations(complianceCheckRuns, ({ one }) => ({
   site: one(sites, { fields: [complianceCheckRuns.siteId], references: [sites.id] }),
 }));
+
+export const securityHeaderCheckRunsRelations = relations(securityHeaderCheckRuns, ({ one }) => ({
+  site: one(sites, { fields: [securityHeaderCheckRuns.siteId], references: [sites.id] }),
+}));
+
+export const siteSecurityHeaderExpectationsRelations = relations(
+  siteSecurityHeaderExpectations,
+  ({ one }) => ({
+    site: one(sites, { fields: [siteSecurityHeaderExpectations.siteId], references: [sites.id] }),
+  }),
+);
 
 export const previewCheckRunsRelations = relations(previewCheckRuns, ({ one }) => ({
   site: one(sites, { fields: [previewCheckRuns.siteId], references: [sites.id] }),

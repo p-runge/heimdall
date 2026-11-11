@@ -76,11 +76,23 @@ export default async function AlertsPage() {
                       </SubmitButton>
                     </form>
                   )}
-                  <form action={resolveWithId}>
-                    <SubmitButton variant="ghost" pendingText="Resolving…">
-                      Resolve
-                    </SubmitButton>
-                  </form>
+                  {/* Resolving by hand would only reopen on the next run; a
+                      header regression is accepted by disabling the
+                      protection on the site page instead. */}
+                  {alert.type === "security_header_regression" ? (
+                    <Link
+                      href={`/sites/${alert.siteId}`}
+                      className="inline-flex items-center justify-center rounded-md border border-mist-700 px-4 py-2 text-sm font-medium text-mist-100 transition-colors hover:border-mist-500 hover:bg-void-raised"
+                    >
+                      Manage on site page
+                    </Link>
+                  ) : (
+                    <form action={resolveWithId}>
+                      <SubmitButton variant="ghost" pendingText="Resolving…">
+                        Resolve
+                      </SubmitButton>
+                    </form>
+                  )}
                 </div>
               </div>
             </Panel>
