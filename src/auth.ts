@@ -11,16 +11,19 @@ function isAllowed(email: string, hostedDomain: unknown) {
 
 // The `hd` hint narrows Google's account chooser to the Workspace domain. It
 // is left out when individual addresses are allowed too, since those may live
-// outside that domain.
-const hostedDomainHint =
-  env.ALLOWED_EMAIL_DOMAIN && env.ALLOWED_EMAILS.length === 0
+// outside that domain. It is passed per sign-in rather than in the provider
+// config, because this module is evaluated during `next build`, where env
+// validation is skipped and ALLOWED_EMAILS is not yet parsed into an array.
+export function hostedDomainHint(): Record<string, string> {
+  return env.ALLOWED_EMAIL_DOMAIN && env.ALLOWED_EMAILS.length === 0
     ? { hd: env.ALLOWED_EMAIL_DOMAIN }
     : {};
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Google({
-      authorization: { params: { ...hostedDomainHint, prompt: "select_account" } },
+      authorization: { params: { prompt: "select_account" } },
     }),
   ],
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },

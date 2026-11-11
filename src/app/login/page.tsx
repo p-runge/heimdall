@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { auth, signIn } from "@/auth";
+import { auth, hostedDomainHint, signIn } from "@/auth";
 import { env } from "@/env";
 import { Callout, Panel } from "@/components/ui";
 import { Logo } from "@/components/logo";
@@ -51,7 +51,7 @@ export default async function LoginPage({
         <form
           action={async () => {
             "use server";
-            await signIn("google", { redirectTo: next ?? "/" });
+            await signIn("google", { redirectTo: next ?? "/" }, hostedDomainHint());
           }}
         >
           <button
